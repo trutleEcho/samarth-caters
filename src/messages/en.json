@@ -1,0 +1,106 @@
+{
+  "common": {
+    "appName": "Samarth Caters",
+    "loading": "Loading...",
+    "refresh": "Refresh",
+    "cancel": "Cancel",
+    "save": "Save",
+    "create": "Create",
+    "update": "Update",
+    "delete": "Delete",
+    "search": "Search",
+    "filter": "Filter",
+    "noResults": "No results found",
+    "logout": "Logout",
+    "language": "Language"
+  },
+  "navigation": {
+    "dashboard": "Dashboard",
+    "orders": "Orders",
+    "menus": "Menus",
+    "expenses": "Expenses"
+  },
+  "dashboard": {
+    "title": "Dashboard",
+    "description": "Welcome back! Here's what's happening with your catering business.",
+    "stats": {
+      "totalOrders": "Total Orders",
+      "activeOrders": "Active Orders",
+      "totalRevenue": "Total Revenue",
+      "monthlyExpenses": "Monthly Expenses"
+    },
+    "upcomingOrders": {
+      "title": "Upcoming Orders",
+      "description": "Events scheduled for the coming days",
+      "noOrders": "No upcoming orders",
+      "guests": "guests"
+    },
+    "recentExpenses": {
+      "title": "Recent Expenses",
+      "description": "Latest business expenses",
+      "noExpenses": "No expenses recorded"
+    }
+  },
+  "orders": {
+    "title": "Orders",
+    "description": "Manage your catering orders and track their progress.",
+    "newOrder": "New Order",
+    "searchOrders": "Search orders...",
+    "filterByStatus": "Filter by status",
+    "status": {
+      "all": "All Status",
+      "booked": "Booked",
+      "menuFinalized": "Menu Finalized",
+      "inProgress": "In Progress",
+      "completed": "Completed",
+      "cancelled": "Cancelled"
+    },
+    "table": {
+      "date": "Date",
+      "customerName": "Customer Name",
+      "address": "Address",
+      "customerPhone": "Customer Phone",
+      "eventType": "Event Type",
+      "eventTime": "Event Time",
+      "venue": "Venue",
+      "payments": "Payments"
+    },
+    "noOrders": {
+      "title": "No orders found",
+      "description": "Try adjusting your search or filters",
+      "emptyDescription": "Get started by creating your first order"
+    },
+    "addOrder": {
+      "title": "Create New Order",
+      "description": "Add a new catering order to your system.",
+      "form": {
+        "customerName": "Customer Name",
+        "customerPhone": "Phone Number",
+        "customerEmail": "Email",
+        "eventType": "Event Type",
+        "guestCount": "Guest Count",
+        "bookingDate": "Booking Date",
+        "eventDate": "Event Date",
+        "venue": "Venue",
+        "notes": "Notes",
+        "notesPlaceholder": "Any special requirements or notes..."
+      },
+      "eventTypes": {
+        "wedding": "Wedding",
+        "birthdayParty": "Birthday Party",
+        "corporateEvent": "Corporate Event",
+        "anniversary": "Anniversary",
+        "festival": "Festival",
+        "other": "Other"
+      },
+      "creating": "Creating...",
+      "createOrder": "Create Order"
+    },
+    "orderDetails": {
+      "title": "Order Details",
+      "description": "View and update order information.",
+      "cancel": "Cancel",
+      "saveChanges": "Save Changes"
+    }
+  }
+} 
