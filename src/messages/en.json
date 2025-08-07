@@ -5,18 +5,25 @@
     "refresh": "Refresh",
     "cancel": "Cancel",
     "save": "Save",
+    "edit": "Edit",
     "create": "Create",
     "update": "Update",
     "delete": "Delete",
+    "deleting": "Deleting...",
     "search": "Search",
     "filter": "Filter",
     "noResults": "No results found",
     "logout": "Logout",
-    "language": "Language"
+    "language": "Language",
+    "amount": "Amount",
+    "status": "Status",
+    "menuItems": "Menu Items",
+    "menuUpdated": "Menu updated successfully!"
   },
   "navigation": {
     "dashboard": "Dashboard",
     "orders": "Orders",
+    "customers": "Customers",
     "menus": "Menus",
     "expenses": "Expenses"
   },
@@ -46,10 +53,29 @@
     "description": "Manage your catering orders and track their progress.",
     "newOrder": "New Order",
     "searchOrders": "Search orders...",
+    "orderBook": "Order Book",
     "filterByStatus": "Filter by status",
+    "loading": "Loading orders...",
+    "orderNumber": "Order Number",
+    "date": "Date",
+    "name": "Name",
+    "phone": "Phone",
+    "email": "Email",
+    "address": "Address",
+    "eventType": "Event Type",
+    "eventTime": "Event Time",
+    "venue": "Venue",
+    "guestCount": "Guest Count",
+    "notes": "Notes",
+    "total": "Total",
+    "balance": "Balance",
+    "edit": "Edit",
+    "save": "Save",
+    "cancel": "Cancel",
     "status": {
       "all": "All Status",
       "booked": "Booked",
+      "confirmed": "Confirmed",
       "menuFinalized": "Menu Finalized",
       "inProgress": "In Progress",
       "completed": "Completed",
@@ -83,7 +109,9 @@
         "eventDate": "Event Date",
         "venue": "Venue",
         "notes": "Notes",
-        "notesPlaceholder": "Any special requirements or notes..."
+        "notesPlaceholder": "Any special requirements or notes...",
+        "selectCustomer": "Select a customer",
+        "noCustomersFound": "No customers found"
       },
       "eventTypes": {
         "wedding": "Wedding",
@@ -102,5 +130,109 @@
       "cancel": "Cancel",
       "saveChanges": "Save Changes"
     }
+  },
+  "customers": {
+    "title": "Customers",
+    "description": "Manage your customer database and view customer information.",
+    "newCustomer": "New Customer",
+    "searchCustomers": "Search customers...",
+    "viewing": "Viewing",
+    "fetchError": "Error fetching customers",
+    "table": {
+      "name": "Name",
+      "phone": "Phone",
+      "email": "Email",
+      "address": "Address",
+      "createdAt": "Created At"
+    },
+    "noCustomers": {
+      "title": "No customers found",
+      "description": "Try adjusting your search terms",
+      "emptyDescription": "Get started by adding your first customer",
+      "message": "No customers found"
+    },
+    "addCustomer": {
+      "title": "Add New Customer",
+      "description": "Add a new customer to your database.",
+      "form": {
+        "name": "Customer Name",
+        "namePlaceholder": "Enter customer name",
+        "phone": "Phone Number",
+        "phonePlaceholder": "Enter phone number",
+        "email": "Email",
+        "emailPlaceholder": "Enter email address",
+        "address": "Address",
+        "addressPlaceholder": "Enter customer address",
+        "notes": "Notes",
+        "notesPlaceholder": "Any additional notes..."
+      },
+      "creating": "Creating...",
+      "createCustomer": "Create Customer",
+      "success": "Customer created successfully!",
+      "error": "Error creating customer",
+      "cancel": "Cancel"
+    },
+    "customerDetails": {
+      "title": "Customer Details",
+      "description": "View and update customer information.",
+      "form": {
+        "name": "Customer Name",
+        "phone": "Phone Number",
+        "email": "Email",
+        "address": "Address",
+        "notes": "Notes",
+        "createdAt": "Created At"
+      },
+      "cancel": "Cancel",
+      "saveChanges": "Save Changes",
+      "saving": "Saving...",
+      "saveSuccess": "Customer updated successfully!",
+      "saveError": "Error updating customer"
+    }
+  },
+  "errors": {
+    "errorOccurred": "An Error Occurred",
+    "errorMessage": "Something went wrong. Please try again later.",
+    "pageNotFound": "Page Not Found",
+    "pageNotFoundMessage": "The page you're looking for doesn't exist or has been moved.",
+    "retry": "Retry",
+    "tryAgain": "Try Again",
+    "goBack": "Go Back",
+    "goHome": "Go Home"
+  },
+  "events": {
+    "title": "Events",
+    "name": "Event Name",
+    "namePlaceholder": "Enter event name",
+    "venue": "Venue",
+    "venuePlaceholder": "Enter venue details",
+    "date": "Event Date",
+    "pickDate": "Pick a date",
+    "guestCount": "Guest Count",
+    "guestCountPlaceholder": "Enter number of guests",
+    "notes": "Notes",
+    "notesPlaceholder": "Enter any additional notes",
+    "eventNumber": "Event {number}",
+    "noEvents": "No events added yet",
+    "addEvent": "Add Event",
+    "hideAddEvent": "Hide Add Event",
+    "eventUpdated": "Event updated successfully",
+    "saving": "Saving...",
+    "save": "Save",
+    "status": "Status",
+    "errors": {
+      "updateFailed": "Failed to update event"
+    }
+  },
+  "menu": {
+    "title": "Menu",
+    "items": "Menu Items",
+    "itemsPlaceholder": "Enter menu items separated by commas",
+    "save": "Save",
+    "saving": "Saving...",
+    "menuUpdated": "Menu updated successfully",
+    "errors": {
+      "updateFailed": "Failed to update menu"
+    }
   }
-} 
+}
