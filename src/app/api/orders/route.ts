@@ -145,7 +145,6 @@ export async function POST(req: NextRequest) {
       order_number: orderNumber,
       status: body.status || OrderStatus.Pending,
       created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString()
     };
 
     // Insert new order

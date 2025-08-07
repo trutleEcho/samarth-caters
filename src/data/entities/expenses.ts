@@ -1,8 +1,9 @@
 export interface Expenses {
-    id: string // UUID
+    id: string
     title: string
-    note?: string
-    meta?: JSON
     amount: number
+    category: 'INGREDIENTS' | 'EQUIPMENT' | 'TRANSPORTATION' | 'STAFF' | 'MARKETING' | 'UTILITIES' | 'OTHER'
+    description?: string
+    date: string
     created_at: Date
 }

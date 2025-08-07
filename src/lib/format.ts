@@ -1,4 +1,31 @@
-import { format, isToday, isTomorrow, isYesterday } from 'date-fns'
+import { format, isToday, isTomorrow, isYesterday, isBefore, isAfter, isEqual } from 'date-fns'
+
+export function filterByDateRange<T>(items: T[], dateField: keyof T, startDate: Date | string | null, endDate: Date | string | null): T[] {
+    if (!startDate && !endDate) return items
+
+    return items.filter(item => {
+        const itemDate = new Date(item[dateField] as string)
+        
+        if (startDate && endDate) {
+            const start = new Date(startDate)
+            const end = new Date(endDate)
+            return (isEqual(itemDate, start) || isAfter(itemDate, start)) && 
+                   (isEqual(itemDate, end) || isBefore(itemDate, end))
+        }
+
+        if (startDate) {
+            const start = new Date(startDate)
+            return isEqual(itemDate, start) || isAfter(itemDate, start)
+        }
+
+        if (endDate) {
+            const end = new Date(endDate)
+            return isEqual(itemDate, end) || isBefore(itemDate, end)
+        }
+
+        return true
+    })
+}
 
 export function formatCurrency(amount: number): string {
     return new Intl.NumberFormat('en-IN', {

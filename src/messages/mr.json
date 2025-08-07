@@ -190,6 +190,29 @@
       "saveError": "ग्राहक अपडेट करण्यात त्रुटी"
     }
   },
+  "payments": {
+    "title": "पेमेंट्स",
+    "addPayment": "पेमेंट जोडा",
+    "noPayments": "कोणत्याही पेमेंट्स सापडल्या नाहीत",
+    "paymentMethod": "पेमेंट पद्धत",
+    "paymentId": "पेमेंट आयडी",
+    "paymentIdPlaceholder": "व्यवहार/संदर्भ आयडी प्रविष्ट करा",
+    "entityType": "संस्थेचा प्रकार",
+    "createdAt": "तयार केले",
+    "paymentUpdated": "पेमेंट यशस्वीरित्या अपडेट केले!",
+    "paymentDeleted": "पेमेंट यशस्वीरित्या हटवले!",
+    "paymentCreated": "पेमेंट यशस्वीरित्या तयार केले!",
+    "recordPaymentDescription": "या ऑर्डरसाठी नवीन पेमेंट नोंदवा",
+    "selectPaymentMethod": "पेमेंट पद्धत निवडा",
+    "selectEntityType": "संस्थेचा प्रकार निवडा",
+    "saving": "जतन करत आहे...",
+    "save": "जतन करा",
+    "errors": {
+      "updateFailed": "पेमेंट अपडेट करण्यात त्रुटी",
+      "deleteFailed": "पेमेंट हटविण्यात त्रुटी",
+      "createFailed": "पेमेंट तयार करण्यात त्रुटी"
+    }
+  },
   "events": {
     "title": "कार्यक्रम",
     "name": "कार्यक्रमाचे नाव",
@@ -223,6 +246,59 @@
     "menuUpdated": "मेन्यू यशस्वीरित्या अपडेट केला",
     "errors": {
       "updateFailed": "मेन्यू अपडेट करण्यात त्रुटी"
+    }
+  },
+  "expenses": {
+    "title": "खर्च",
+    "description": "तुमचे खर्च ट्रॅक करा आणि व्यवस्थापित करा",
+    "newExpense": "नवीन खर्च",
+    "loading": "खर्च लोड करत आहे…",
+    "noExpenses": {
+      "title": "खर्च नाहीत",
+      "description": "शोध समायोजित करा किंवा नवीन खर्च जोडा",
+      "toast": "कोणतेही खर्च सापडले नाहीत"
+    },
+    "table": {
+      "date": "तारीख",
+      "title": "शीर्षक",
+      "amount": "रक्कम",
+      "note": "नोट",
+      "actions": "क्रिया"
+    },
+    "errors": {
+      "fetchFailed": "खर्च आणण्यात अयशस्वी",
+      "general": "काहीतरी चूक झाली"
+    },
+    "filter": {
+      "byDate": "तारखेनुसार फिल्टर करा"
+    },
+    "form": {
+      "title": "शीर्षक",
+      "titlePlaceholder": "खर्चाचे शीर्षक प्रविष्ट करा",
+      "amount": "रक्कम",
+      "amountPlaceholder": "रक्कम प्रविष्ट करा",
+      "category": "श्रेणी",
+      "date": "तारीख",
+      "description": "वर्णन",
+      "descriptionPlaceholder": "या खर्चाबद्दल अतिरिक्त माहिती..."
+    },
+    "dialog": {
+      "addTitle": "नवीन खर्च जोडा",
+      "addDescription": "नवीन व्यवसाय खर्च नोंदवा.",
+      "editTitle": "खर्च संपादित करा",
+      "editDescription": "खर्चाचे तपशील अपडेट करा."
+    },
+    "status": {
+      "success": {
+        "created": "खर्च यशस्वीरित्या तयार केला",
+        "updated": "खर्च यशस्वीरित्या अपडेट केला",
+        "deleted": "खर्च यशस्वीरित्या हटवला"
+      },
+      "error": {
+        "create": "खर्च तयार करण्यात त्रुटी",
+        "update": "खर्च अपडेट करण्यात त्रुटी",
+        "delete": "खर्च हटविण्यात त्रुटी"
+      }
     }
   }
 }

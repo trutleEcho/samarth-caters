@@ -32,8 +32,7 @@ const navigation = [
     {name: 'dashboard', href: '/dashboard', icon: Home},
     {name: 'orders', href: '/orders', icon: ShoppingCart},
     {name: 'customers', href: '/customers', icon: Users},
-    // {name: 'menus', href: '/menus', icon: UtensilsCrossed},
-    // {name: 'expenses', href: '/expenses', icon: Receipt},
+    {name: 'expenses', href: '/expenses', icon: Receipt},
 ]
 
 export default function Header() {

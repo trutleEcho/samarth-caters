@@ -73,31 +73,21 @@ export default function MenuManager({eventId, menu, onSave, isEditing}: MenuMana
     }, [menu]);
 
     return (
-        <Card className="mx-auto mb-4 mt-6">
-            <CardContent>
-                <div className="mb-2">
-                    <span>Menu Items</span>
-                    <Textarea
-                        id="menu-items"
-                        className="mt-1 font-mono dark:text-white"
-                        placeholder={menu?.items ? menu.items :isEditing ? "Enter menu items"  : "No menu items"}
-                        value={items}
-                        onChange={e => setItems(e.target.value)}
-                        rows={6}
-                        disabled={!isEditing}
-                    />
-                    {isEditing && (
-                        <div className="flex justify-end mt-2">
-                            <Button onClick={handleSave}>Update Menu</Button>
-                        </div>)}
-                </div>
-                {/*<div className="text-sm">*/}
-                {/*        <pre*/}
-                {/*            className="bg-gray-100 p-2 rounded font-mono print:bg-white print:border print:p-2 print:rounded-none">*/}
-                {/*            {items}*/}
-                {/*        </pre>*/}
-                {/*</div>*/}
-            </CardContent>
-        </Card>
+        <div className="mt-4">
+            <span className="text-muted-foreground text-xs">Menu Items</span>
+            <Textarea
+                id="menu-items"
+                className="mt-1 font-mono dark:text-white"
+                placeholder={menu?.items ? menu.items : isEditing ? "Enter menu items" : "No menu items"}
+                value={items}
+                onChange={e => setItems(e.target.value)}
+                rows={6}
+                disabled={!isEditing}
+            />
+            {isEditing && (
+                <div className="flex justify-end mt-2">
+                    <Button onClick={handleSave}>Update Menu</Button>
+                </div>)}
+        </div>
     );
 }

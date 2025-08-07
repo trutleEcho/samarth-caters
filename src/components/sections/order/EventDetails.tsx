@@ -144,8 +144,8 @@ export default function EventDetails({event, isEditing, onSaveAction, menu}: Eve
         <Card className="w-full">
             <CardContent>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <div className="space-y-2">
-                        <Label htmlFor="name">{t('name')}</Label>
+                    <div>
+                        <Label className="text-muted-foreground text-xs" htmlFor="name">{t('name')}</Label>
                         {isEditing ? (
                             <Input
                                 id="name"
@@ -159,8 +159,8 @@ export default function EventDetails({event, isEditing, onSaveAction, menu}: Eve
                             <p className="text-foreground font-medium">{formData.name || '-'}</p>
                         )}
                     </div>
-                    <div className="space-y-2">
-                        <Label htmlFor="venue">{t('venue')}</Label>
+                    <div>
+                        <Label className="text-muted-foreground text-xs" htmlFor="venue">{t('venue')}</Label>
                         {isEditing ? (
                             <Input
                                 id="venue"
@@ -174,8 +174,8 @@ export default function EventDetails({event, isEditing, onSaveAction, menu}: Eve
                             <p className="text-foreground font-medium">{formData.venue || '-'}</p>
                         )}
                     </div>
-                    <div className="space-y-2">
-                        <Label>{t('date')}</Label>
+                    <div>
+                        <Label className="text-muted-foreground text-xs">{t('date')}</Label>
                         {isEditing ? (
                             <div className="relative">
                                 <DateTimePicker
@@ -190,8 +190,8 @@ export default function EventDetails({event, isEditing, onSaveAction, menu}: Eve
                             </p>
                         )}
                     </div>
-                    <div className="space-y-2">
-                        <Label htmlFor="status">{c('status')}</Label>
+                    <div>
+                        <Label className="text-muted-foreground text-xs" htmlFor="status">{c('status')}</Label>
                         {isEditing ? (
                             <Select
                                 value={formData.status}
@@ -214,8 +214,8 @@ export default function EventDetails({event, isEditing, onSaveAction, menu}: Eve
                             </Badge>
                         )}
                     </div>
-                    <div className="space-y-2">
-                        <Label htmlFor="guest_count">{t('guestCount')}</Label>
+                    <div>
+                        <Label className="text-muted-foreground text-xs" htmlFor="guest_count">{t('guestCount')}</Label>
                         {isEditing ? (
                             <Input
                                 id="guest_count"
@@ -230,8 +230,8 @@ export default function EventDetails({event, isEditing, onSaveAction, menu}: Eve
                             <p className="text-foreground font-medium">{formData.guest_count || '-'}</p>
                         )}
                     </div>
-                    <div className="space-y-2">
-                        <Label htmlFor="amount">{c('amount')}</Label>
+                    <div>
+                        <Label className="text-muted-foreground text-xs" htmlFor="amount">{c('amount')}</Label>
                         {isEditing ? (
                             <div className="relative">
                                 <Input
@@ -252,7 +252,7 @@ export default function EventDetails({event, isEditing, onSaveAction, menu}: Eve
                         )}
                     </div>
                     <div className="space-y-2 md:col-span-2">
-                        <Label htmlFor="notes">{t('notes')}</Label>
+                        <Label className="text-muted-foreground text-xs" htmlFor="notes">{t('notes')}</Label>
                         {isEditing ? (
                             <Input
                                 id="notes"
@@ -271,8 +271,10 @@ export default function EventDetails({event, isEditing, onSaveAction, menu}: Eve
                 <ErrorBoundary>
                     <MenuManager
                         eventId={event.id}
-                        menu={menu} 
-                        onSave={() => {onSaveAction()}}
+                        menu={menu}
+                        onSave={() => {
+                            onSaveAction()
+                        }}
                         isEditing={isEditing}
                     />
                 </ErrorBoundary>

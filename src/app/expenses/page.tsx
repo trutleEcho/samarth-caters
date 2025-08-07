@@ -1,19 +1,24 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { motion } from 'framer-motion'
-import { Plus, Search, Filter, Calendar, DollarSign, TrendingUp, TrendingDown } from 'lucide-react'
+import {useState, useEffect} from 'react'
+import {motion} from 'framer-motion'
+import {Plus, Search, Filter, Calendar, DollarSign, TrendingUp, TrendingDown} from 'lucide-react'
 import Header from '@/components/layout/header'
 import PageHeader from '@/components/ui/page-header'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
-import { Badge } from '@/components/ui/badge'
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog'
-import { Label } from '@/components/ui/label'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Textarea } from '@/components/ui/textarea'
-import { formatCurrency, formatDate } from '@/lib/format'
+import {Card, CardContent, CardDescription, CardHeader, CardTitle} from '@/components/ui/card'
+import {Button} from '@/components/ui/button'
+import {Input} from '@/components/ui/input'
+import {Badge} from '@/components/ui/badge'
+import {Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle} from '@/components/ui/dialog'
+import {Label} from '@/components/ui/label'
+import {Select, SelectContent, SelectItem, SelectTrigger, SelectValue} from '@/components/ui/select'
+import {Textarea} from '@/components/ui/textarea'
+import {Table, TableBody, TableCell, TableHead, TableHeader, TableRow} from '@/components/ui/table'
+import {Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription} from '@/components/ui/drawer'
+import {Edit, Trash2} from 'lucide-react'
+import {formatCurrency, formatDate} from '@/lib/format'
+import {toast} from "sonner";
+import StatCard from "@/components/ui/stat-card";
 
 interface Expense {
     id: string
@@ -41,6 +46,9 @@ export default function ExpensesPage() {
     const [isDialogOpen, setIsDialogOpen] = useState(false)
     const [searchTerm, setSearchTerm] = useState('')
     const [categoryFilter, setCategoryFilter] = useState('all')
+    const [dateRange, setDateRange] = useState({from: '', to: ''})
+    const [drawerOpen, setDrawerOpen] = useState(false)
+    const [selectedExpense, setSelectedExpense] = useState<Expense | null>(null)
     const [formData, setFormData] = useState({
         title: '',
         amount: '',
@@ -67,17 +75,37 @@ export default function ExpensesPage() {
             filtered = filtered.filter(expense => expense.category === categoryFilter)
         }
 
+        if (dateRange.from && dateRange.to) {
+            filtered = filtered.filter(expense => {
+                const expenseDate = new Date(expense.date)
+                const fromDate = new Date(dateRange.from)
+                const toDate = new Date(dateRange.to)
+                fromDate.setHours(0, 0, 0, 0)
+                toDate.setHours(23, 59, 59, 999)
+                return expenseDate >= fromDate && expenseDate <= toDate
+            })
+        }
+
         setFilteredExpenses(filtered)
-    }, [expenses, searchTerm, categoryFilter])
+    }, [expenses, searchTerm, categoryFilter, dateRange])
 
     const fetchExpenses = async () => {
+        setLoading(true)
         try {
             const response = await fetch('/api/expenses')
             if (response.ok) {
                 const data = await response.json()
                 setExpenses(data)
+                setFilteredExpenses(data)
+                if (data.length === 0) {
+                    toast.info('No expenses found')
+                }
+            }
+            if (response.status === 500) {
+                toast.error(`Error fetching expenses: ${response.statusText}`)
             }
         } catch (error) {
+            toast.error('Failed to fetch expenses')
             console.error('Error fetching expenses:', error)
         } finally {
             setLoading(false)
@@ -90,11 +118,12 @@ export default function ExpensesPage() {
         try {
             const response = await fetch('/api/expenses', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify(formData)
             })
 
             if (response.ok) {
+                toast.success('Expense added successfully')
                 setIsDialogOpen(false)
                 setFormData({
                     title: '',
@@ -105,7 +134,11 @@ export default function ExpensesPage() {
                 })
                 fetchExpenses()
             }
+            if (response.status === 500) {
+                toast.error(`Failed to create expense: ${response.statusText}`)
+            }
         } catch (error) {
+            toast.error('Failed to create expense')
             console.error('Error creating expense:', error)
         }
     }
@@ -129,7 +162,7 @@ export default function ExpensesPage() {
     if (loading) {
         return (
             <div className="min-h-screen bg-gray-50">
-                <Header />
+                <Header/>
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
                     <div className="animate-pulse space-y-6">
                         <div className="h-8 bg-gray-200 rounded w-48"></div>
@@ -145,8 +178,8 @@ export default function ExpensesPage() {
     }
 
     return (
-        <div className="min-h-screen bg-gray-50">
-            <Header />
+        <div className="min-h-screen">
+            <Header/>
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
                 <PageHeader
                     title="Expenses"
@@ -160,80 +193,26 @@ export default function ExpensesPage() {
                 {/* Stats Cards */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-8">
                     <motion.div
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ duration: 0.3 }}
+                        initial={{opacity: 0, y: 20}}
+                        animate={{opacity: 1, y: 0}}
+                        transition={{duration: 0.3}}
                     >
-                        <Card>
-                            <CardContent className="p-6">
-                                <div className="flex items-center justify-between">
-                                    <div>
-                                        <p className="text-sm font-medium text-gray-600">Total Expenses</p>
-                                        <p className="text-2xl font-bold text-gray-900 mt-2">
-                                            {formatCurrency(totalExpenses)}
-                                        </p>
-                                    </div>
-                                    <div className="p-3 rounded-full bg-red-50">
-                                        <DollarSign className="h-6 w-6 text-red-500" />
-                                    </div>
-                                </div>
-                            </CardContent>
-                        </Card>
+                        <StatCard title={"Total Expenses"} value={formatCurrency(totalExpenses)} icon={DollarSign}/>
                     </motion.div>
 
                     <motion.div
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ duration: 0.3, delay: 0.1 }}
+                        initial={{opacity: 0, y: 20}}
+                        animate={{opacity: 1, y: 0}}
+                        transition={{duration: 0.3, delay: 0.1}}
                     >
-                        <Card>
-                            <CardContent className="p-6">
-                                <div className="flex items-center justify-between">
-                                    <div>
-                                        <p className="text-sm font-medium text-gray-600">This Month</p>
-                                        <p className="text-2xl font-bold text-gray-900 mt-2">
-                                            {formatCurrency(thisMonth)}
-                                        </p>
-                                    </div>
-                                    <div className="p-3 rounded-full bg-orange-50">
-                                        <Calendar className="h-6 w-6 text-orange-500" />
-                                    </div>
-                                </div>
-                            </CardContent>
-                        </Card>
-                    </motion.div>
-
-                    <motion.div
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ duration: 0.3, delay: 0.2 }}
-                    >
-                        <Card>
-                            <CardContent className="p-6">
-                                <div className="flex items-center justify-between">
-                                    <div>
-                                        <p className="text-sm font-medium text-gray-600">Monthly Change</p>
-                                        <p className={`text-2xl font-bold mt-2 ${monthlyChange >= 0 ? 'text-red-600' : 'text-green-600'}`}>
-                                            {monthlyChange >= 0 ? '+' : ''}{monthlyChange.toFixed(1)}%
-                                        </p>
-                                    </div>
-                                    <div className={`p-3 rounded-full ${monthlyChange >= 0 ? 'bg-red-50' : 'bg-green-50'}`}>
-                                        {monthlyChange >= 0 ? (
-                                            <TrendingUp className="h-6 w-6 text-red-500" />
-                                        ) : (
-                                            <TrendingDown className="h-6 w-6 text-green-500" />
-                                        )}
-                                    </div>
-                                </div>
-                            </CardContent>
-                        </Card>
+                        <StatCard title={"This Month"} value={formatCurrency(thisMonth)} icon={Calendar}/>
                     </motion.div>
                 </div>
 
                 {/* Filters */}
-                <div className="flex flex-col sm:flex-row gap-4 mt-8 mb-6">
+                <div className="flex flex-col lg:flex-row gap-4 mt-8 mb-6">
                     <div className="relative flex-1">
-                        <Search className="h-4 w-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                        <Search className="h-4 w-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"/>
                         <Input
                             placeholder="Search expenses..."
                             value={searchTerm}
@@ -241,71 +220,168 @@ export default function ExpensesPage() {
                             className="pl-10"
                         />
                     </div>
-                    <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-                        <SelectTrigger className="w-full sm:w-[180px]">
-                            <Filter className="h-4 w-4 mr-2" />
-                            <SelectValue placeholder="Filter by category" />
-                        </SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="all">All Categories</SelectItem>
-                            <SelectItem value="INGREDIENTS">Ingredients</SelectItem>
-                            <SelectItem value="EQUIPMENT">Equipment</SelectItem>
-                            <SelectItem value="TRANSPORTATION">Transportation</SelectItem>
-                            <SelectItem value="STAFF">Staff</SelectItem>
-                            <SelectItem value="MARKETING">Marketing</SelectItem>
-                            <SelectItem value="UTILITIES">Utilities</SelectItem>
-                            <SelectItem value="OTHER">Other</SelectItem>
-                        </SelectContent>
-                    </Select>
+                    <div className="flex flex-col md:flex-row gap-4">
+                        <div className="flex gap-2">
+                            <div className="relative">
+                                <Calendar
+                                    className="h-4 w-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"/>
+                                <Input
+                                    type="date"
+                                    value={dateRange.from}
+                                    onChange={(e) => setDateRange({...dateRange, from: e.target.value})}
+                                    className="pl-10 w-[150px]"
+                                />
+                            </div>
+                            <div className="relative">
+                                <Calendar
+                                    className="h-4 w-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"/>
+                                <Input
+                                    type="date"
+                                    value={dateRange.to}
+                                    onChange={(e) => setDateRange({...dateRange, to: e.target.value})}
+                                    className="pl-10 w-[150px]"
+                                />
+                            </div>
+                        </div>
+                        <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+                            <SelectTrigger className="w-full sm:w-[180px]">
+                                <Filter className="h-4 w-4 mr-2"/>
+                                <SelectValue placeholder="Filter by category"/>
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="all">All Categories</SelectItem>
+                                <SelectItem value="INGREDIENTS">Ingredients</SelectItem>
+                                <SelectItem value="EQUIPMENT">Equipment</SelectItem>
+                                <SelectItem value="TRANSPORTATION">Transportation</SelectItem>
+                                <SelectItem value="STAFF">Staff</SelectItem>
+                                <SelectItem value="MARKETING">Marketing</SelectItem>
+                                <SelectItem value="UTILITIES">Utilities</SelectItem>
+                                <SelectItem value="OTHER">Other</SelectItem>
+                            </SelectContent>
+                        </Select>
+                        <Button
+                            variant="outline"
+                            onClick={() => {
+                                setSearchTerm('')
+                                setCategoryFilter('all')
+                                setDateRange({from: '', to: ''})
+                            }}
+                            className="whitespace-nowrap"
+                        >
+                            Clear Filters
+                        </Button>
+                    </div>
                 </div>
 
-                {/* Expenses List */}
-                <div className="space-y-4">
-                    {filteredExpenses.map((expense, index) => (
-                        <motion.div
-                            key={expense.id}
-                            initial={{ opacity: 0, y: 20 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ duration: 0.3, delay: index * 0.05 }}
-                        >
-                            <Card className="hover:shadow-md transition-shadow duration-200">
-                                <CardContent className="p-6">
-                                    <div className="flex items-center justify-between">
-                                        <div className="flex-1">
-                                            <div className="flex items-center space-x-3 mb-2">
-                                                <h3 className="text-lg font-semibold text-gray-900">{expense.title}</h3>
-                                                <Badge className={categoryColors[expense.category] || 'bg-gray-100 text-gray-800'}>
-                                                    {expense.category.replace('_', ' ')}
-                                                </Badge>
-                                            </div>
-                                            {expense.description && (
-                                                <p className="text-gray-600 mb-2">{expense.description}</p>
-                                            )}
-                                            <div className="flex items-center text-sm text-gray-500">
-                                                <Calendar className="h-4 w-4 mr-1" />
-                                                {formatDate(expense.date)}
-                                            </div>
+                {/* Expenses Table */}
+                <div className="rounded-lg border border-border bg-card overflow-x-auto">
+                    <Table>
+                        <TableHeader>
+                            <TableRow className="hover:bg-transparent">
+                                <TableHead className="w-[100px]">Date</TableHead>
+                                <TableHead>Title</TableHead>
+                                <TableHead className="hidden sm:table-cell">Category</TableHead>
+                                <TableHead className="text-right">Amount</TableHead>
+                                <TableHead className="hidden lg:table-cell">Note</TableHead>
+                                <TableHead className="w-[100px]">Actions</TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            {filteredExpenses.map((expense, index) => (
+                                <motion.tr
+                                    key={expense.id}
+                                    initial={{opacity: 0, y: 20}}
+                                    animate={{opacity: 1, y: 0}}
+                                    transition={{duration: 0.3, delay: index * 0.1}}
+                                    className="cursor-pointer hover:bg-accent/50 transition-colors"
+                                >
+                                    <TableCell
+                                        className="font-medium"
+                                        onClick={() => {
+                                            setSelectedExpense(expense)
+                                            setDrawerOpen(true)
+                                        }}
+                                    >
+                                        {formatDate(expense.date)}
+                                        <div className="md:hidden mt-1">
+                                            <Badge
+                                                className={categoryColors[expense.category] || 'bg-gray-100 text-gray-800'}>
+                                                {expense.category.replace('_', ' ')}
+                                            </Badge>
                                         </div>
-                                        <div className="text-right">
-                                            <p className="text-2xl font-bold text-red-600">
-                                                -{formatCurrency(expense.amount)}
-                                            </p>
-                                        </div>
-                                    </div>
-                                </CardContent>
-                            </Card>
-                        </motion.div>
-                    ))}
+                                    </TableCell>
+                                    <TableCell
+                                        onClick={() => {
+                                            setSelectedExpense(expense)
+                                            setDrawerOpen(true)
+                                        }}
+                                    >
+                                        {expense.title}
+                                    </TableCell>
+                                    <TableCell
+                                        className="hidden sm:table-cell"
+                                        onClick={() => {
+                                            setSelectedExpense(expense)
+                                            setDrawerOpen(true)
+                                        }}
+                                    >
+                                        <Badge
+                                            className={categoryColors[expense.category] || 'bg-gray-100 text-gray-800'}>
+                                            {expense.category.replace('_', ' ')}
+                                        </Badge>
+                                    </TableCell>
+                                    <TableCell
+                                        className="text-right"
+                                        onClick={() => {
+                                            setSelectedExpense(expense)
+                                            setDrawerOpen(true)
+                                        }}
+                                    >
+                                        ₹{expense.amount.toLocaleString()}
+                                    </TableCell>
+                                    <TableCell
+                                        className="hidden lg:table-cell"
+                                        onClick={() => {
+                                            setSelectedExpense(expense)
+                                            setDrawerOpen(true)
+                                        }}
+                                    >
+                                        {expense.description || '-'}
+                                    </TableCell>
+                                    <TableCell className="flex items-center space-x-2">
+                                        <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            onClick={() => {
+                                                // TODO: Implement edit functionality
+                                            }}
+                                        >
+                                            <Edit className="h-4 w-4"/>
+                                        </Button>
+                                        <Button
+                                            variant="ghost"
+                                            size="sm"
+                                            onClick={() => {
+                                                // TODO: Implement delete functionality
+                                            }}
+                                        >
+                                            <Trash2 className="h-4 w-4"/>
+                                        </Button>
+                                    </TableCell>
+                                </motion.tr>
+                            ))}
+                        </TableBody>
+                    </Table>
                 </div>
 
                 {filteredExpenses.length === 0 && !loading && (
                     <div className="text-center py-12">
                         <motion.div
-                            initial={{ opacity: 0, scale: 0.9 }}
-                            animate={{ opacity: 1, scale: 1 }}
-                            transition={{ duration: 0.3 }}
+                            initial={{opacity: 0, scale: 0.9}}
+                            animate={{opacity: 1, scale: 1}}
+                            transition={{duration: 0.3}}
                         >
-                            <DollarSign className="h-24 w-24 mx-auto text-gray-300 mb-4" />
+                            <DollarSign className="h-24 w-24 mx-auto text-gray-300 mb-4"/>
                             <h3 className="text-lg font-medium text-gray-900 mb-2">No expenses found</h3>
                             <p className="text-gray-500 mb-6">
                                 {searchTerm || categoryFilter !== 'all'
@@ -313,11 +389,57 @@ export default function ExpensesPage() {
                                     : 'Get started by adding your first expense'}
                             </p>
                             <Button onClick={() => setIsDialogOpen(true)} className="bg-orange-500 hover:bg-orange-600">
-                                <Plus className="h-4 w-4 mr-2" />
+                                <Plus className="h-4 w-4 mr-2"/>
                                 Add Expense
                             </Button>
                         </motion.div>
                     </div>
+                )}
+
+                {/* Details Drawer */}
+                {selectedExpense && (
+                    <Drawer open={drawerOpen} onOpenChange={(open) => {
+                        setDrawerOpen(open)
+                        if (!open) setSelectedExpense(null)
+                    }}>
+                        <DrawerContent>
+                            <DrawerHeader>
+                                <DrawerTitle>Expense Details</DrawerTitle>
+                                <DrawerDescription>
+                                    View complete expense information
+                                </DrawerDescription>
+                            </DrawerHeader>
+                            <div className="p-4">
+                                <div className="grid gap-4">
+                                    <div>
+                                        <h3 className="font-semibold">{selectedExpense.title}</h3>
+                                        <Badge
+                                            className={categoryColors[selectedExpense.category] || 'bg-gray-100 text-gray-800'}>
+                                            {selectedExpense.category.replace('_', ' ')}
+                                        </Badge>
+                                    </div>
+                                    <div className="space-y-2">
+                                        <div className="flex items-center text-sm text-muted-foreground">
+                                            <Calendar className="h-4 w-4 mr-2"/>
+                                            {formatDate(selectedExpense.date)}
+                                        </div>
+                                        <div className="flex items-center text-sm text-muted-foreground">
+                                            <DollarSign className="h-4 w-4 mr-2"/>
+                                            ₹{selectedExpense.amount.toLocaleString()}
+                                        </div>
+                                    </div>
+                                    {selectedExpense.description && (
+                                        <div>
+                                            <h4 className="text-sm font-medium">Description</h4>
+                                            <p className="text-sm text-muted-foreground">
+                                                {selectedExpense.description}
+                                            </p>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        </DrawerContent>
+                    </Drawer>
                 )}
 
                 {/* Add Expense Dialog */}
@@ -335,7 +457,7 @@ export default function ExpensesPage() {
                                 <Input
                                     id="title"
                                     value={formData.title}
-                                    onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                                    onChange={(e) => setFormData({...formData, title: e.target.value})}
                                     required
                                 />
                             </div>
@@ -348,15 +470,16 @@ export default function ExpensesPage() {
                                         type="number"
                                         step="0.01"
                                         value={formData.amount}
-                                        onChange={(e) => setFormData({ ...formData, amount: e.target.value })}
+                                        onChange={(e) => setFormData({...formData, amount: e.target.value})}
                                         required
                                     />
                                 </div>
                                 <div className="space-y-2">
                                     <Label htmlFor="category">Category *</Label>
-                                    <Select value={formData.category} onValueChange={(value) => setFormData({ ...formData, category: value })}>
+                                    <Select value={formData.category}
+                                            onValueChange={(value) => setFormData({...formData, category: value})}>
                                         <SelectTrigger>
-                                            <SelectValue placeholder="Select category" />
+                                            <SelectValue placeholder="Select category"/>
                                         </SelectTrigger>
                                         <SelectContent>
                                             <SelectItem value="INGREDIENTS">Ingredients</SelectItem>
@@ -377,7 +500,7 @@ export default function ExpensesPage() {
                                     id="date"
                                     type="date"
                                     value={formData.date}
-                                    onChange={(e) => setFormData({ ...formData, date: e.target.value })}
+                                    onChange={(e) => setFormData({...formData, date: e.target.value})}
                                     required
                                 />
                             </div>
@@ -387,13 +510,14 @@ export default function ExpensesPage() {
                                 <Textarea
                                     id="description"
                                     value={formData.description}
-                                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                                    onChange={(e) => setFormData({...formData, description: e.target.value})}
                                     placeholder="Additional details about this expense..."
                                 />
                             </div>
 
                             <div className="flex space-x-2 pt-4">
-                                <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)} className="flex-1">
+                                <Button type="button" variant="outline" onClick={() => setIsDialogOpen(false)}
+                                        className="flex-1">
                                     Cancel
                                 </Button>
                                 <Button type="submit" className="flex-1 bg-orange-500 hover:bg-orange-600">

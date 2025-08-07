@@ -190,6 +190,29 @@
       "saveError": "Error updating customer"
     }
   },
+  "payments": {
+    "title": "Payments",
+    "addPayment": "Add Payment",
+    "noPayments": "No payments found",
+    "paymentMethod": "Payment Method",
+    "paymentId": "Payment ID",
+    "paymentIdPlaceholder": "Enter transaction/reference ID",
+    "entityType": "Entity Type",
+    "createdAt": "Created At",
+    "paymentUpdated": "Payment updated successfully!",
+    "paymentDeleted": "Payment deleted successfully!",
+    "paymentCreated": "Payment created successfully!",
+    "recordPaymentDescription": "Record a new payment for this order",
+    "selectPaymentMethod": "Select payment method",
+    "selectEntityType": "Select entity type",
+    "saving": "Saving...",
+    "save": "Save",
+    "errors": {
+      "updateFailed": "Failed to update payment",
+      "deleteFailed": "Failed to delete payment",
+      "createFailed": "Failed to create payment"
+    }
+  },
   "errors": {
     "errorOccurred": "An Error Occurred",
     "errorMessage": "Something went wrong. Please try again later.",
@@ -233,6 +256,59 @@
     "menuUpdated": "Menu updated successfully",
     "errors": {
       "updateFailed": "Failed to update menu"
+    }
+  },
+  "expenses": {
+    "title": "Expenses",
+    "description": "Track and manage your expenditures",
+    "newExpense": "New Expense",
+    "loading": "Loading expenses…",
+    "noExpenses": {
+      "title": "No expenses",
+      "description": "Try adjusting your search or add a new expense",
+      "toast": "No expenses found"
+    },
+    "table": {
+      "date": "Date",
+      "title": "Title",
+      "amount": "Amount",
+      "note": "Note",
+      "actions": "Actions"
+    },
+    "errors": {
+      "fetchFailed": "Failed to fetch expenses",
+      "general": "Something went wrong"
+    },
+    "filter": {
+      "byDate": "Filter by date"
+    },
+    "form": {
+      "title": "Title",
+      "titlePlaceholder": "Enter expense title",
+      "amount": "Amount",
+      "amountPlaceholder": "Enter amount",
+      "category": "Category",
+      "date": "Date",
+      "description": "Description",
+      "descriptionPlaceholder": "Additional details about this expense..."
+    },
+    "dialog": {
+      "addTitle": "Add New Expense",
+      "addDescription": "Record a new business expense.",
+      "editTitle": "Edit Expense",
+      "editDescription": "Update expense details."
+    },
+    "status": {
+      "success": {
+        "created": "Expense created successfully",
+        "updated": "Expense updated successfully",
+        "deleted": "Expense deleted successfully"
+      },
+      "error": {
+        "create": "Failed to create expense",
+        "update": "Failed to update expense",
+        "delete": "Failed to delete expense"
+      }
     }
   }
 }

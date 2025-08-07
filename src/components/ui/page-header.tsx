@@ -1,5 +1,7 @@
 'use client'
 
+import {ErrorBoundary} from '@/components/error-boundary'
+
 import {motion} from 'framer-motion'
 import {Button} from '@/components/ui/button'
 import {Plus, RefreshCcw} from 'lucide-react'
@@ -16,7 +18,8 @@ interface PageHeaderProps {
 
 export default function PageHeader({title, description, refresh, action}: PageHeaderProps) {
     return (
-        <motion.div
+        <ErrorBoundary>
+            <motion.div
             initial={{opacity: 0, y: 20}}
             animate={{opacity: 1, y: 0}}
             transition={{duration: 0.5}}
@@ -43,5 +46,6 @@ export default function PageHeader({title, description, refresh, action}: PageHe
                 )}
             </div>
         </motion.div>
+        </ErrorBoundary>
     )
 }
