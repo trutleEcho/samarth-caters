@@ -1,7 +1,0 @@
-// Represents the normalized DB table: customers
-export interface Customer {
-    id: string
-    name: string
-    phone: string
-    email: string
-}

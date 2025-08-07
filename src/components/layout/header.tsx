@@ -10,6 +10,7 @@ import {
     X,
     Home,
     ShoppingCart,
+    Users,
     UtensilsCrossed,
     Receipt,
     LogOut
@@ -30,7 +31,7 @@ import { useTranslations } from 'next-intl';
 const navigation = [
     {name: 'dashboard', href: '/dashboard', icon: Home},
     {name: 'orders', href: '/orders', icon: ShoppingCart},
-    {name: 'menus', href: '/menus', icon: UtensilsCrossed},
+    {name: 'customers', href: '/customers', icon: Users},
     {name: 'expenses', href: '/expenses', icon: Receipt},
 ]
 

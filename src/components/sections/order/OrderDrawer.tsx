@@ -1,179 +1,151 @@
-import React, { useState, useEffect } from 'react';
-import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription } from '@/components/ui/drawer';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Button } from '@/components/ui/button';
-import { Textarea } from '@/components/ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Separator } from '@/components/ui/separator';
-import { OrderData } from '@/types/dto/order-data';
-import { useTranslations } from 'next-intl';
+'use client';
 
-interface OrderDrawerProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  order: OrderData | null;
-  onSave: (updated: Partial<OrderData>) => void;
+import {Drawer, DrawerContent, DrawerDescription, DrawerHeader, DrawerTitle} from '@/components/ui/drawer';
+import {Badge} from '@/components/ui/badge';
+import {Separator} from '@/components/ui/separator';
+import EventTabs from './EventTabs';
+import PaymentTabs from './PaymentTabs';
+import {useTranslations} from 'next-intl';
+import {ExpandedOrder} from "@/data/dto/expanded-order";
+import {ErrorBoundary} from "@/components/error-boundary";
+import ConversionUtil from "@/utils/ConversionUtil";
+import {Tabs, TabsContent, TabsList, TabsTrigger} from '@/components/ui/tabs';
+
+export default function OrderDrawer({open, onOpenChange, order, onSaveAction}: {
+    open: boolean,
+    onOpenChange: (open: boolean) => void,
+    order: ExpandedOrder,
+    onSaveAction: () => void
+}) {
+    const t = useTranslations('orders');
+
+    if (!order) return null;
+
+    // const handleUpdateOrder = async () => {
+    //     setLoading(true);
+    //     try {
+    //         const response = await fetch(`/api/orders/${order.order.id}`, {
+    //             method: 'PUT',
+    //             headers: {
+    //                 'Content-Type': 'application/json',
+    //             },
+    //             body: JSON.stringify(order),
+    //         });
+    //
+    //         if (!response.ok) {
+    //             throw new Error('Failed to update order');
+    //         }
+    //
+    //         toast.success(t('orderUpdated'));
+    //         onSave();
+    //         setIsEditing(false);
+    //     } catch (error) {
+    //         toast.error(t('errors.updateFailed'));
+    //         console.error('Error updating order:', error);
+    //     } finally {
+    //         setLoading(false);
+    //     }
+    // };
+
+    return (
+        <Drawer open={open} onOpenChange={onOpenChange}>
+            <DrawerContent className="bg-card print:bg-white print:shadow-none print:border-none">
+                <section className="overflow-y-scroll px-8">
+                    <DrawerHeader>
+                        <DrawerTitle>
+                            <span className="flex flex-row items-center justify-between">
+                                <Badge variant="outline" className="text-md">
+                                    {t('orderBook')}
+                                </Badge>
+                                <span className="text-4xl font-bold text-primary">
+                                    SAMARTH <br/>CATERS
+                                </span>
+                                <span className="flex flex-col items-end">
+                                    <span className="text-xs text-muted-foreground">
+                                        {t('orderNumber')}: <span className="text-lg font-semibold text-foreground">
+                                            {order.order.order_number}
+                                        </span>
+                                    </span>
+                                    <span className="text-xs text-muted-foreground">
+                                        {t('date')}: <span className="text-lg font-semibold text-foreground">
+                                            {order.order.created_at ? new Date(order.order.created_at).toDateString() : '-'}
+                                        </span>
+                                    </span>
+                                </span>
+                            </span>
+                        </DrawerTitle>
+                        <Separator className="my-4"/>
+                        <DrawerDescription>
+                            <span className="space-y-4">
+                                <span className="flex flex-row items-start justify-between">
+                                    <span className="text-xs text-muted-foreground">
+                                        {t('name')}: <span className="text-lg font-semibold text-foreground">
+                                            {order.customer.name}
+                                        </span>
+                                    </span>
+                                    <span className="text-xs text-muted-foreground">
+                                        {t('address')}: <span className="text-lg font-semibold text-foreground">
+                                            {order.customer.address ?? '-'}
+                                        </span>
+                                    </span>
+                                    <span className="text-xs text-muted-foreground">
+                                        {t('phone')}: <span className="text-lg font-semibold text-foreground">
+                                            {order.customer.phone_number}
+                                        </span>
+                                    </span>
+                                </span>
+                                <span className="flex flex-row items-start justify-between">
+                                    <span className="text-xs text-muted-foreground">
+                                        {t('email')}: <span className="text-lg font-semibold text-foreground">
+                                            {order.customer.email ?? '-'}
+                                        </span>
+                                    </span>
+                                    <span className="flex flex-col items-end">
+                                        <span className="text-xs text-muted-foreground">
+                                            {t('total')}: <span className="text-lg font-semibold text-foreground">
+                                                {ConversionUtil.toRupees(order.order.total_amount || 0)}
+                                            </span>
+                                        </span>
+                                        <span className="text-xs text-muted-foreground">
+                                            {t('balance')}: <span className="text-lg font-semibold text-foreground">
+                                                {ConversionUtil.toRupees(order.order.balance || 0)}
+                                            </span>
+                                        </span>
+                                    </span>
+                                </span>
+                            </span>
+                        </DrawerDescription>
+                    </DrawerHeader>
+                    <div className="p-4 md:p-6">
+                        <Tabs defaultValue="events" className="w-full">
+                            <TabsList className="mb-4 w-full justify-start">
+                                <TabsTrigger value="events" className="flex-1">
+                                    Events ({order.events.length})
+                                </TabsTrigger>
+                                <TabsTrigger value="payments" className="flex-1">
+                                    Payments ({order.payments.length})
+                                </TabsTrigger>
+                            </TabsList>
+                            <TabsContent value="events">
+                                <ErrorBoundary>
+                                    <EventTabs
+                                        order={order}
+                                        onSaveAction={onSaveAction}
+                                    />
+                                </ErrorBoundary>
+                            </TabsContent>
+                            <TabsContent value="payments">
+                                <ErrorBoundary>
+                                    <PaymentTabs
+                                        order={order}
+                                        onSaveAction={onSaveAction}
+                                    />
+                                </ErrorBoundary>
+                            </TabsContent>
+                        </Tabs>
+                    </div>
+                </section>
+            </DrawerContent>
+        </Drawer>
+    );
 }
-
-export default function OrderDrawer({ open, onOpenChange, order, onSave }: OrderDrawerProps) {
-  const t = useTranslations('orders');
-  const [form, setForm] = useState({
-    customerName: '',
-    customerPhone: '',
-    customerEmail: '',
-    eventType: '',
-    guestCount: 0,
-    eventDate: '',
-    venue: '',
-  });
-
-  useEffect(() => {
-    if (order) {
-      setForm({
-        customerName: order.customer.name || '',
-        customerPhone: order.customer.phone || '',
-        customerEmail: order.customer.email || '',
-        eventType: order.metadata.event_type || '',
-        guestCount: order.metadata.guest_count || 0,
-        eventDate: order.metadata.event_date ? new Date(order.metadata.event_date).toISOString().split('T')[0] : '',
-        venue: order.metadata.venue || '',
-      });
-    }
-  }, [order]);
-
-  if (!order) return null;
-
-  const handleChange = (field: string, value: any) => {
-    setForm((prev) => ({ ...prev, [field]: value }));
-  };
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    onSave({
-      customer: {
-        ...order.customer,
-        name: form.customerName,
-        phone: form.customerPhone,
-        email: form.customerEmail,
-      },
-      metadata: {
-        ...order.metadata,
-        event_type: form.eventType,
-        guest_count: form.guestCount,
-        event_date: form.eventDate ? new Date(form.eventDate) : order.metadata.event_date,
-        venue: form.venue,
-      },
-      order: {
-        ...order.order,
-      },
-    });
-  };
-
-  // Get event types from translations
-  const eventTypes = [
-    t('addOrder.eventTypes.wedding'),
-    t('addOrder.eventTypes.birthdayParty'),
-    t('addOrder.eventTypes.corporateEvent'),
-    t('addOrder.eventTypes.anniversary'),
-    t('addOrder.eventTypes.festival'),
-    t('addOrder.eventTypes.other'),
-  ];
-
-  return (
-    <Drawer open={open} onOpenChange={onOpenChange}>
-      <DrawerContent className="mx-2">
-        <DrawerHeader>
-          <DrawerTitle>{t('orderDetails.title')}</DrawerTitle>
-          <DrawerDescription>{t('orderDetails.description')}</DrawerDescription>
-        </DrawerHeader>
-        <Separator className="my-2" />
-        <form onSubmit={handleSubmit} className="space-y-4 px-4 pb-6">
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="customerName">{t('addOrder.form.customerName')}</Label>
-              <Input
-                id="customerName"
-                value={form.customerName}
-                onChange={(e) => handleChange('customerName', e.target.value)}
-                required
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="customerPhone">{t('addOrder.form.customerPhone')}</Label>
-              <Input
-                id="customerPhone"
-                value={form.customerPhone}
-                onChange={(e) => handleChange('customerPhone', e.target.value)}
-                required
-              />
-            </div>
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="customerEmail">{t('addOrder.form.customerEmail')}</Label>
-            <Input
-              id="customerEmail"
-              type="email"
-              value={form.customerEmail}
-              onChange={(e) => handleChange('customerEmail', e.target.value)}
-            />
-          </div>
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="eventType">{t('addOrder.form.eventType')}</Label>
-              <Select value={form.eventType} onValueChange={(value) => handleChange('eventType', value)}>
-                <SelectTrigger>
-                  <SelectValue placeholder={t('addOrder.form.eventType')} />
-                </SelectTrigger>
-                <SelectContent>
-                  {eventTypes.map((type) => (
-                    <SelectItem key={type} value={type}>{type}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="guestCount">{t('addOrder.form.guestCount')}</Label>
-              <Input
-                id="guestCount"
-                type="number"
-                value={form.guestCount}
-                onChange={(e) => handleChange('guestCount', Number(e.target.value))}
-                required
-              />
-            </div>
-          </div>
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="eventDate">{t('addOrder.form.eventDate')}</Label>
-              <Input
-                id="eventDate"
-                type="date"
-                value={form.eventDate}
-                onChange={(e) => handleChange('eventDate', e.target.value)}
-                required
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="venue">{t('addOrder.form.venue')}</Label>
-              <Input
-                id="venue"
-                value={form.venue}
-                onChange={(e) => handleChange('venue', e.target.value)}
-                required
-              />
-            </div>
-          </div>
-          <div className="flex space-x-2 pt-4">
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)} className="flex-1">
-              {t('orderDetails.cancel')}
-            </Button>
-            <Button type="submit" className="flex-1 bg-orange-500 hover:bg-orange-600">
-              {t('orderDetails.saveChanges')}
-            </Button>
-          </div>
-        </form>
-      </DrawerContent>
-    </Drawer>
-  );
-} 
