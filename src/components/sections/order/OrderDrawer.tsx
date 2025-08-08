@@ -108,7 +108,7 @@ export default function OrderDrawer({open, onOpenChange, order, onSaveAction}: {
                                         </span>
                                         <span className="text-xs text-muted-foreground">
                                             {t('balance')}: <span className="text-lg font-semibold text-foreground">
-                                                {ConversionUtil.toRupees(order.order.balance || 0)}
+                                                {ConversionUtil.toRupees((order.order.total_amount - (order.order.balance || 0)) || 0)}
                                             </span>
                                         </span>
                                     </span>

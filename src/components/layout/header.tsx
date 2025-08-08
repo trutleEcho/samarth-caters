@@ -27,6 +27,7 @@ import {ThemeToggle} from "@/components/custom/theme-toggle";
 import {LanguageToggle} from "@/components/custom/language-toggle";
 import {Separator} from "@/components/ui/separator";
 import { useTranslations } from 'next-intl';
+import pkg from "../../../package.json";
 
 const navigation = [
     {name: 'dashboard', href: '/dashboard', icon: Home},
@@ -88,6 +89,9 @@ export default function Header() {
                             <LogOut className="h-4 w-4 mr-2"/>
                             {commonT('logout')}
                         </Button>
+                        <span className="text-sm text-muted-foreground">
+                            v{pkg.version}
+                        </span>
                     </div>
 
                     {/* Mobile Menu */}
@@ -138,6 +142,7 @@ export default function Header() {
                                         <LogOut className="h-5 w-5"/>
                                         <span>{commonT('logout')}</span>
                                     </Button>
+                                    <span className="text-xs text-white">v{pkg.version}</span>
                                 </div>
                             </nav>
                         </SheetContent>

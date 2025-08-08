@@ -243,6 +243,7 @@
     "saving": "Saving...",
     "save": "Save",
     "status": "Status",
+    "eventDeleted": "Event deleted successfully",
     "errors": {
       "updateFailed": "Failed to update event"
     }
