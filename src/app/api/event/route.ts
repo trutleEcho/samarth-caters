@@ -102,6 +102,32 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'order_id is required' }, { status: 400 });
     }
 
+    // Get order details
+    const { data: order, error: orderFetchError } = await supabase
+      .from('orders')
+      .select('*')
+      .eq('id', body.order_id)
+      .single();
+
+    if (orderFetchError) {
+      console.error('Order fetch error:', orderFetchError.message);
+      return NextResponse.json({ error: orderFetchError.message }, { status: 500 });
+    }
+
+    const totalAmount = order?.total_amount + body.amount
+
+    const { error: orderUpdateError } = await supabase
+      .from('orders')
+      .update({ total_amount: totalAmount })
+      .eq('id', body.order_id)
+      .select('*')
+      .single();
+
+    if (orderUpdateError) {
+      console.error('Order update error:', orderUpdateError.message);
+      return NextResponse.json({ error: orderUpdateError.message }, { status: 500 });
+    }
+
     // Build insert payload with defaults
     const finalRequest = {
       ...body,
@@ -211,6 +237,45 @@ export async function DELETE(req: NextRequest) {
 
     if (!eventId) {
       return NextResponse.json({ error: 'Event ID is required' }, { status: 400 });
+    }
+
+    // Get event details before deletion for balance update
+    const { data: event, error: eventFetchError } = await supabase
+      .from('events')
+      .select('*')
+      .eq('id', eventId)
+      .single();
+
+    if (eventFetchError) {
+      console.error('Event fetch error:', eventFetchError.message);
+      return NextResponse.json({ error: eventFetchError.message }, { status: 500 });
+    }
+
+    const { data: order, error: orderFetchError } = await supabase
+      .from('orders')
+      .select('*')
+      .eq('id', event?.order_id)
+      .single();
+
+    if (orderFetchError) {
+      console.error('Order fetch error:', orderFetchError.message);
+      return NextResponse.json({ error: orderFetchError.message }, { status: 500 });
+    }
+
+    const updatedTotalAmount = (Number(order?.total_amount) - Number(event?.amount)) || 0;
+
+    const {error: updateOrderError} = await supabase
+      .from('orders')
+      .update({
+        total_amount: updatedTotalAmount
+      })
+      .eq('id', event?.order_id)
+      .select('*')
+      .single();
+
+    if (updateOrderError) {
+      console.error('Order update error:', updateOrderError.message);
+      return NextResponse.json({ error: updateOrderError.message }, { status: 500 });
     }
 
     // Delete event

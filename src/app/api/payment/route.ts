@@ -99,7 +99,7 @@ export async function POST(req: NextRequest) {
         .single();
 
       if (!orderError && order) {
-        const newBalance = (order.balance || 0) - Number(body.amount);
+        const newBalance = (order.balance || 0) + Number(body.amount);
         
         await supabase
           .from('orders')
@@ -166,7 +166,7 @@ export async function PUT(req: NextRequest) {
         .single();
 
       if (!orderError && order) {
-        const newBalance = (order.balance || 0) - amountDifference;
+        const newBalance = (order.balance || 0) + amountDifference;
         
         await supabase
           .from('orders')
@@ -224,7 +224,7 @@ export async function DELETE(req: NextRequest) {
         .single();
 
       if (!orderError && order) {
-        const newBalance = (order.balance || 0) + payment.amount;
+        const newBalance = (order.balance || 0) - payment.amount;
         
         await supabase
           .from('orders')
