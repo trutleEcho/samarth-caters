@@ -12,7 +12,7 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
         const loginResponse = localStorage.getItem('loginResponse');
 
         if (!isLoginPage && !loginResponse) {
-            router.push('/login');
+            // router.push('/login');
         }
     }, [pathname, router]);
 
