@@ -2,7 +2,7 @@
 
 import {useState, useEffect} from 'react'
 import {motion} from 'framer-motion'
-import {Plus, Search, Filter, Calendar, DollarSign, TrendingUp, TrendingDown} from 'lucide-react'
+import {Plus, Search, Filter, Calendar, DollarSign, TrendingUp, TrendingDown, Download} from 'lucide-react'
 import Header from '@/components/layout/header'
 import PageHeader from '@/components/ui/page-header'
 import {Card, CardContent, CardDescription, CardHeader, CardTitle} from '@/components/ui/card'
@@ -19,6 +19,8 @@ import {Edit, Trash2} from 'lucide-react'
 import {formatCurrency, formatDate} from '@/lib/format'
 import {toast} from "sonner";
 import StatCard from "@/components/ui/stat-card";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
 
 interface Expense {
     id: string
@@ -177,6 +179,77 @@ export default function ExpensesPage() {
         )
     }
 
+    const genExpensesPDF = () => {
+        const doc = new jsPDF("p", "mm", "a4")
+
+        // ---------------- HEADER ----------------
+        const logoUrl = "/logo.png"
+        doc.addImage(logoUrl, "PNG", 10, 8, 40, 20)
+
+        doc.setFont("helvetica", "bold")
+        doc.setFontSize(18)
+        doc.text("Samarth Caters", 60, 18)
+
+        doc.setFont("helvetica", "normal")
+        doc.setFontSize(12)
+        doc.setTextColor(80)
+        doc.text("Expenses Report", 60, 26)
+
+        doc.setFontSize(10)
+        doc.setTextColor(120)
+        doc.text(`Generated on: ${new Date().toLocaleString("en-IN")}`, 60, 32)
+
+        doc.setDrawColor(180)
+        doc.setLineWidth(0.5)
+        doc.line(10, 38, 200, 38)
+
+        let y = 48
+        doc.setTextColor(0)
+
+        // ---------------- EXPENSES TABLE ----------------
+        if (expenses.length > 0) {
+            autoTable(doc, {
+                startY: y,
+                head: [["Sr.No", "Title", "Category", "Amount (INR)", "Date"]],
+                body: expenses.map((exp, i) => [
+                    i + 1,
+                    exp.title,
+                    exp.category,
+                    exp.amount.toLocaleString("en-IN"),
+                    formatDate(exp.date),
+                ]),
+                headStyles: { fillColor: [192, 57, 43], textColor: 255, halign: "center" },
+                styles: { fontSize: 10, cellPadding: 4 },
+            })
+            y = (doc.lastAutoTable?.finalY ?? y) + 10
+        } else {
+            doc.setFont("helvetica", "normal")
+            doc.setFontSize(11)
+            doc.text("No expenses recorded.", 15, y)
+            y += 15
+        }
+
+        // ---------------- SUMMARY ----------------
+        const totalExpenses = expenses.reduce((sum, exp) => sum + exp.amount, 0)
+        doc.setFont("helvetica", "bold")
+        doc.setFontSize(13)
+        doc.text("Summary", 10, y)
+
+        y += 8
+        doc.setFont("helvetica", "normal")
+        doc.setFontSize(11)
+        doc.text(`Total Expenses: INR ${totalExpenses.toLocaleString("en-IN")}`, 15, y)
+
+        // ---------------- FOOTER ----------------
+        doc.setFontSize(9)
+        doc.setTextColor(150)
+        doc.text("Confidential - Internal Use Only", 10, 290)
+        doc.text("© 2025 Samarth Caters", 160, 290)
+
+        // Save PDF
+        doc.save(`Expenses-Report-${new Date().toISOString().split("T")[0]}.pdf`)
+    }
+
     return (
         <div className="min-h-screen">
             <Header/>
@@ -189,6 +262,10 @@ export default function ExpensesPage() {
                         onClick: () => setIsDialogOpen(true)
                     }}
                 />
+                <Button onClick={genExpensesPDF} className="mt-4 text-white">
+                    <Download className="mr-2 h-4 w-4"/>
+                    Generate Report
+                </Button>
 
                 {/* Stats Cards */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-8">
@@ -388,6 +465,7 @@ export default function ExpensesPage() {
                                     ? 'Try adjusting your search or filters'
                                     : 'Get started by adding your first expense'}
                             </p>
+
                             <Button onClick={() => setIsDialogOpen(true)} className="bg-orange-500 hover:bg-orange-600">
                                 <Plus className="h-4 w-4 mr-2"/>
                                 Add Expense

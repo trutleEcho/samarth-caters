@@ -2,18 +2,21 @@
 
 import {useEffect, useState} from 'react'
 import {motion} from 'framer-motion'
-import {Calendar, Clock, DollarSign, ShoppingCart, TrendingUp, Users,} from 'lucide-react'
+import {Calendar, Clock, DollarSign, Download, ShoppingCart, TrendingUp, Users,} from 'lucide-react'
 import Header from '@/components/layout/header'
 import PageHeader from '@/components/ui/page-header'
 import StatCard from '@/components/ui/stat-card'
 import {Card, CardContent, CardDescription, CardHeader, CardTitle} from '@/components/ui/card'
 import {Badge} from '@/components/ui/badge'
-import {formatCurrency, formatDate} from '@/lib/format'
+import {formatCurrency, formatDate, formatDateTime} from '@/lib/format'
 import {useTranslations} from 'next-intl';
 import {Expenses} from "@/data/entities/expenses";
 import {ExpandedOrder} from "@/data/dto/expanded-order";
 import {EventStatus} from "@/data/enums/event-status";
 import Link from "next/link";
+import jsPDF from "jspdf"
+import autoTable from "jspdf-autotable"
+import {Button} from "@/components/ui/button";
 
 export default function DashboardPage() {
     const t = useTranslations('dashboard');
@@ -88,14 +91,131 @@ export default function DashboardPage() {
         )
     }
 
+    /**
+     * Generate a professional Quick Analytics PDF report
+     */
+    const generatePdf = () => {
+        const doc = new jsPDF("p", "mm", "a4") // portrait, millimeters, A4
+
+        // ---------------- HEADER ----------------
+        const logoUrl = "/logo.png" // from public/
+        doc.addImage(logoUrl, "PNG", 10, 8, 40, 20)
+
+        // Company name
+        doc.setFont("helvetica", "bold")
+        doc.setFontSize(20)
+        doc.text("Samarth Caters", 55, 20)
+
+        // Report title
+        doc.setFont("helvetica", "normal")
+        doc.setFontSize(14)
+        doc.setTextColor(80)
+        doc.text("Quick Analytics Report", 55, 28)
+
+        // Date
+        doc.setFontSize(10)
+        doc.setTextColor(120)
+        doc.text(`Generated on: ${formatDateTime(new Date())}`, 55, 34)
+
+        // Line separator
+        doc.setDrawColor(180)
+        doc.setLineWidth(0.5)
+        doc.line(10, 40, 200, 40)
+
+        let y = 50
+        doc.setTextColor(0)
+
+        // ---------------- SUMMARY ----------------
+        doc.setFont("helvetica", "bold")
+        doc.setFontSize(13)
+        doc.text("1. Summary", 10, y)
+
+        y += 10
+        doc.setFont("helvetica", "normal")
+        doc.setFontSize(11)
+        doc.text(`• Total Orders: ${stats.totalOrders}`, 15, y)
+        y += 8
+        doc.text(`• Active Orders: ${stats.activeOrders}`, 15, y)
+        y += 8
+        doc.text(`• Total Revenue: INR ${stats.totalRevenue.toLocaleString("en-IN")}`, 15, y)
+        y += 8
+        doc.text(`• Monthly Expenses: INR ${stats.monthlyExpenses.toLocaleString("en-IN")}`, 15, y)
+
+        // ---------------- UPCOMING EVENTS ----------------
+        y += 15
+        doc.setFont("helvetica", "bold")
+        doc.setFontSize(13)
+        doc.text("2. Upcoming Events", 10, y)
+
+        if (upcomingEvents.length > 0) {
+            autoTable(doc, {
+                startY: y + 5,
+                head: [["Sr.No", "Event Name", "Date"]],
+                body: upcomingEvents.map((event, i) => [
+                    i + 1,
+                    event?.name || "—",
+                    event?.date ? formatDate(new Date(event.date)) : "—",
+                ]),
+                headStyles: { fillColor: [60, 141, 188], textColor: 255, halign: "center" },
+                styles: { fontSize: 10, cellPadding: 4 },
+            })
+            y = (doc.lastAutoTable?.finalY ?? 10) + 10
+        } else {
+            doc.setFont("helvetica", "normal")
+            doc.setFontSize(11)
+            doc.text("No upcoming events.", 15, y + 8)
+            y += 15
+        }
+
+        // ---------------- RECENT EXPENSES ----------------
+        doc.setFont("helvetica", "bold")
+        doc.setFontSize(13)
+        doc.text("3. Recent Expenses", 10, y)
+
+        if (recentExpenses.length > 0) {
+            autoTable(doc, {
+                startY: y + 5,
+                head: [["Sr.No", "Title", "Amount"]],
+                body: recentExpenses.map((expense, i) => [
+                    i + 1,
+                    expense.title,
+                    `INR ${expense.amount.toLocaleString("en-IN")}`,
+                ]),
+                headStyles: { fillColor: [34, 153, 84], textColor: 255, halign: "center" },
+                styles: { fontSize: 10, cellPadding: 4 },
+            })
+            y = (doc.lastAutoTable?.finalY ?? 10) + 10
+        } else {
+            doc.setFont("helvetica", "normal")
+            doc.setFontSize(11)
+            doc.text("No recent expenses.", 15, y + 8)
+            y += 15
+        }
+
+        // ---------------- FOOTER ----------------
+        doc.setFontSize(9)
+        doc.setTextColor(150)
+        doc.text("Confidential - For internal use only", 10, 290)
+        doc.text("© 2025 Samarth Caters", 160, 290)
+
+        // Save PDF
+        doc.save(`Quick-Analytics-(${formatDateTime(new Date())}).pdf`)
+    }
+
     return (
         <div className="min-h-screen bg-background/95">
             <Header/>
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-                <PageHeader
-                    title={t('title')}
-                    description={t('description')}
-                />
+                <div className="flex items-center justify-between">
+                    <PageHeader
+                        title={t('title')}
+                        description={t('description')}
+                    />
+                    <Button onClick={generatePdf}>
+                        <Download className="h-4 w-4 mr-2"/>
+                        Download
+                    </Button>
+                </div>
 
                 {/* Stats Grid */}
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mt-8">

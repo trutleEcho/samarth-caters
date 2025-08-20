@@ -31,6 +31,7 @@ export function formatCurrency(amount: number): string {
     return new Intl.NumberFormat('en-IN', {
         style: 'currency',
         currency: 'INR',
+        currencyDisplay: 'symbol',
     }).format(amount)
 }
 

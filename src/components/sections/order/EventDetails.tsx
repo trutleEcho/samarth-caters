@@ -7,7 +7,7 @@ import {toast} from "sonner";
 import {Label} from "@/components/ui/label";
 import {Input} from "@/components/ui/input";
 import {Button} from "@/components/ui/button";
-import {CalendarIcon, IndianRupee, Loader2} from "lucide-react";
+import {CalendarIcon, Download, IndianRupee, Loader2} from "lucide-react";
 import {format} from "date-fns";
 import DateTimePicker from "../../../../datetime-picker";
 import {EventStatus} from "@/data/enums/event-status";
@@ -30,6 +30,9 @@ import {ErrorBoundary} from "@/components/error-boundary";
 import {Menu} from "@/data/entities/menu";
 import MenuManager from "@/components/sections/order/MenuManager";
 import ConversionUtil from "@/utils/ConversionUtil";
+import autoTable from "jspdf-autotable";
+import {formatDateTime} from "@/lib/format";
+import jsPDF from "jspdf";
 
 interface EventDetailsProps {
     event: Event;
@@ -139,6 +142,95 @@ export default function EventDetails({event, isEditing, onSaveAction, menu}: Eve
             setLoading(false);
         }
     };
+
+    const genEventMenuPDF = async (event: Event, menu?: Menu) => {
+        const doc = new jsPDF("p", "mm", "a4")
+
+        // ---------------- HEADER ----------------
+        const logoUrl = "/logo.png"
+        doc.addImage(logoUrl, "PNG", 10, 8, 40, 20)
+
+        doc.setFont("helvetica", "bold")
+        doc.setFontSize(18)
+        doc.text("Samarth Caters", 60, 18)
+
+        doc.setFont("helvetica", "normal")
+        doc.setFontSize(12)
+        doc.setTextColor(80)
+        doc.text("Event Menu", 60, 26)
+
+        doc.setDrawColor(180)
+        doc.setLineWidth(0.5)
+        doc.line(10, 35, 200, 35)
+
+        let y = 45
+        doc.setTextColor(0)
+
+        // ---------------- EVENT DETAILS ----------------
+        doc.setFont("helvetica", "bold")
+        doc.setFontSize(13)
+        doc.text("Event Details", 10, y)
+
+        y += 10
+        doc.setFont("helvetica", "normal")
+        doc.setFontSize(11)
+        doc.text(`• Event: ${event.name || "—"}`, 15, y); y += 8
+        doc.text(`• Date: ${event.date ? formatDateTime(event.date) : "—"}`, 15, y); y += 8
+        doc.text(`• Venue: ${event.venue || "—"}`, 15, y); y += 8
+        doc.text(`• Guests: ${event.guest_count ?? "—"}`, 15, y); y += 8
+        if (event.notes) {
+            doc.text("• Notes:", 15, y);
+            y += 6
+            doc.text(event.notes, 20, y, { maxWidth: 170 })
+            y += 12
+        } else {
+            y += 4
+        }
+
+        // ---------------- MENU ----------------
+        doc.setFont("helvetica", "bold")
+        doc.setFontSize(13)
+        doc.text("Menu", 10, y)
+
+        y += 10
+        doc.setFont("helvetica", "normal")
+        doc.setFontSize(11)
+
+        if (menu?.items) {
+            // Split items by new line instead of comma
+            const itemsList = menu.items
+                .split(/\r?\n/) // handles both Windows (\r\n) and Unix (\n) line endings
+                .map((item) => item.trim())
+                .filter((item) => item.length > 0) // remove empty lines
+
+            if (itemsList.length > 0) {
+                autoTable(doc, {
+                    startY: y,
+                    head: [["Sr.No", "Item"]],
+                    body: itemsList.map((item, i) => [i + 1, item]),
+                    headStyles: { fillColor: [52, 73, 94], textColor: 255, halign: "center" },
+                    styles: { fontSize: 11, cellPadding: 4 },
+                })
+                y = (doc.lastAutoTable?.finalY ?? y) + 10
+            } else {
+                doc.text("No menu items provided.", 15, y)
+                y += 10
+            }
+        } else {
+            doc.text("No menu items provided.", 15, y)
+            y += 10
+        }
+
+
+        // ---------------- FOOTER ----------------
+        doc.setFontSize(9)
+        doc.setTextColor(150)
+        doc.text("Prepared for kitchen & service staff", 10, 290)
+        doc.text("© 2025 Samarth Caters", 160, 290)
+
+        // Save PDF
+        doc.save(`Event-Menu-${event.name || event.id}.pdf`)
+    }
 
     return (
         <Card className="w-full">
@@ -251,7 +343,7 @@ export default function EventDetails({event, isEditing, onSaveAction, menu}: Eve
                             </p>
                         )}
                     </div>
-                    <div className="space-y-2 md:col-span-2">
+                    <div className="space-y-2 md:col-span-1">
                         <Label className="text-muted-foreground text-xs" htmlFor="notes">{t('notes')}</Label>
                         {isEditing ? (
                             <Input
@@ -264,6 +356,16 @@ export default function EventDetails({event, isEditing, onSaveAction, menu}: Eve
                             />
                         ) : (
                             <p className="text-foreground font-medium">{formData.notes || '-'}</p>
+                        )}
+                    </div>
+                    <div className="space-y-2 md:col-span-1">
+                        {isEditing ? (
+                            <div></div>
+                        ) : (
+                            <Button onClick={()=>genEventMenuPDF(event,menu)}>
+                                <Download className="mr-2 h-4 w-4"/>
+                                Download Menu
+                            </Button>
                         )}
                     </div>
                 </div>
