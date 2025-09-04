@@ -14,9 +14,9 @@ import {Expenses} from "@/data/entities/expenses";
 import {ExpandedOrder} from "@/data/dto/expanded-order";
 import {EventStatus} from "@/data/enums/event-status";
 import Link from "next/link";
-import jsPDF from "jspdf"
-import autoTable from "jspdf-autotable"
+import { PDFGenerator } from "@/lib/pdf-utils"
 import {Button} from "@/components/ui/button";
+import { api } from "@/lib/api";
 
 export default function DashboardPage() {
     const t = useTranslations('dashboard');
@@ -28,8 +28,8 @@ export default function DashboardPage() {
         const fetchData = async () => {
             try {
                 const [ordersRes, expensesRes] = await Promise.all([
-                    fetch('/api/orders'),
-                    fetch('/api/expenses')
+                    api.get('/api/orders'),
+                    api.get('/api/expenses')
                 ])
 
                 if (ordersRes.ok && expensesRes.ok) {
@@ -37,6 +37,8 @@ export default function DashboardPage() {
                     const expensesData = await expensesRes.json()
                     setOrders(ordersData)
                     setExpenses(expensesData)
+                } else {
+                    console.error('Failed to fetch data:', ordersRes.status, expensesRes.status)
                 }
             } catch (error) {
                 console.error('Error fetching dashboard data:', error)
@@ -55,7 +57,7 @@ export default function DashboardPage() {
         ).length,
         totalRevenue: orders.reduce((sum, order) => sum + order.order.total_amount, 0),
         monthlyExpenses: expenses
-            .filter(expense => new Date(expense.date).getMonth() === new Date().getMonth())
+            .filter(expense => new Date(expense.expense_date ?? new Date()).getMonth() === new Date().getMonth())
             .reduce((sum, expense) => sum + expense.amount, 0)
     }
 
@@ -95,111 +97,79 @@ export default function DashboardPage() {
      * Generate a professional Quick Analytics PDF report
      */
     const generatePdf = () => {
-        const doc = new jsPDF("p", "mm", "a4") // portrait, millimeters, A4
+        const pdf = new PDFGenerator();
 
-        // ---------------- HEADER ----------------
-        const logoUrl = "/logo.png" // from public/
-        doc.addImage(logoUrl, "PNG", 10, 8, 40, 20)
+        // Add professional header
+        pdf.addHeader({
+            title: "Quick Analytics Report",
+            subtitle: "Business Performance Overview",
+            showDate: true
+        });
 
-        // Company name
-        doc.setFont("helvetica", "bold")
-        doc.setFontSize(20)
-        doc.text("Samarth Caters", 55, 20)
+        // Add summary section
+        pdf.addSectionHeader("Business Summary");
+        pdf.addSummaryBox([
+            { label: "Total Orders", value: stats.totalOrders, color: [34, 153, 84] },
+            { label: "Active Orders", value: stats.activeOrders, color: [255, 193, 7] },
+            { label: "Total Revenue", value: formatCurrency(stats.totalRevenue), color: [40, 167, 69] },
+            { label: "Monthly Expenses", value: formatCurrency(stats.monthlyExpenses), color: [220, 53, 69] }
+        ]);
 
-        // Report title
-        doc.setFont("helvetica", "normal")
-        doc.setFontSize(14)
-        doc.setTextColor(80)
-        doc.text("Quick Analytics Report", 55, 28)
-
-        // Date
-        doc.setFontSize(10)
-        doc.setTextColor(120)
-        doc.text(`Generated on: ${formatDateTime(new Date())}`, 55, 34)
-
-        // Line separator
-        doc.setDrawColor(180)
-        doc.setLineWidth(0.5)
-        doc.line(10, 40, 200, 40)
-
-        let y = 50
-        doc.setTextColor(0)
-
-        // ---------------- SUMMARY ----------------
-        doc.setFont("helvetica", "bold")
-        doc.setFontSize(13)
-        doc.text("1. Summary", 10, y)
-
-        y += 10
-        doc.setFont("helvetica", "normal")
-        doc.setFontSize(11)
-        doc.text(`• Total Orders: ${stats.totalOrders}`, 15, y)
-        y += 8
-        doc.text(`• Active Orders: ${stats.activeOrders}`, 15, y)
-        y += 8
-        doc.text(`• Total Revenue: INR ${stats.totalRevenue.toLocaleString("en-IN")}`, 15, y)
-        y += 8
-        doc.text(`• Monthly Expenses: INR ${stats.monthlyExpenses.toLocaleString("en-IN")}`, 15, y)
-
-        // ---------------- UPCOMING EVENTS ----------------
-        y += 15
-        doc.setFont("helvetica", "bold")
-        doc.setFontSize(13)
-        doc.text("2. Upcoming Events", 10, y)
-
+        // Add upcoming events section
+        pdf.addSectionHeader("Upcoming Events");
         if (upcomingEvents.length > 0) {
-            autoTable(doc, {
-                startY: y + 5,
-                head: [["Sr.No", "Event Name", "Date"]],
-                body: upcomingEvents.map((event, i) => [
-                    i + 1,
-                    event?.name || "—",
-                    event?.date ? formatDate(new Date(event.date)) : "—",
-                ]),
-                headStyles: { fillColor: [60, 141, 188], textColor: 255, halign: "center" },
-                styles: { fontSize: 10, cellPadding: 4 },
-            })
-            y = (doc.lastAutoTable?.finalY ?? 10) + 10
+            const eventsData = upcomingEvents.slice(0, 5).filter(Boolean).map((event, index) => ({
+                sr: index + 1,
+                name: event?.name || "Unnamed Event",
+                date: event?.date ? formatDateTime(event.date) : "TBD",
+                venue: event?.venue || "TBD",
+                guests: event?.guest_count || "TBD"
+            }));
+
+            pdf.addTable(eventsData, [
+                { header: "Sr.", dataKey: "sr", width: 15, align: "center" },
+                { header: "Event Name", dataKey: "name", width: 60 },
+                { header: "Date", dataKey: "date", width: 50 },
+                { header: "Venue", dataKey: "venue", width: 40 },
+                { header: "Guests", dataKey: "guests", width: 25, align: "center" }
+            ]);
         } else {
-            doc.setFont("helvetica", "normal")
-            doc.setFontSize(11)
-            doc.text("No upcoming events.", 15, y + 8)
-            y += 15
+            pdf.addText("No upcoming events found.", { color: [120, 120, 120] });
         }
 
-        // ---------------- RECENT EXPENSES ----------------
-        doc.setFont("helvetica", "bold")
-        doc.setFontSize(13)
-        doc.text("3. Recent Expenses", 10, y)
-
+        // Add recent expenses section
+        pdf.addSectionHeader("Recent Expenses");
         if (recentExpenses.length > 0) {
-            autoTable(doc, {
-                startY: y + 5,
-                head: [["Sr.No", "Title", "Amount"]],
-                body: recentExpenses.map((expense, i) => [
-                    i + 1,
-                    expense.title,
-                    `INR ${expense.amount.toLocaleString("en-IN")}`,
-                ]),
-                headStyles: { fillColor: [34, 153, 84], textColor: 255, halign: "center" },
-                styles: { fontSize: 10, cellPadding: 4 },
-            })
-            y = (doc.lastAutoTable?.finalY ?? 10) + 10
+            const expensesData = recentExpenses.map((expense, index) => ({
+                sr: index + 1,
+                description: expense.description,
+                amount: formatCurrency(expense.amount),
+                date: formatDateTime(expense.expense_date || expense.created_at),
+                category: expense.category || "Other"
+            }));
+
+            pdf.addTable(expensesData, [
+                { header: "Sr.", dataKey: "sr", width: 15, align: "center" },
+                { header: "Description", dataKey: "description", width: 70 },
+                { header: "Amount", dataKey: "amount", width: 30, align: "right" },
+                { header: "Date", dataKey: "date", width: 50 },
+                { header: "Category", dataKey: "category", width: 25, align: "center" }
+            ]);
         } else {
-            doc.setFont("helvetica", "normal")
-            doc.setFontSize(11)
-            doc.text("No recent expenses.", 15, y + 8)
-            y += 15
+            pdf.addText("No recent expenses found.", { color: [120, 120, 120] });
         }
 
-        // ---------------- FOOTER ----------------
-        doc.setFontSize(9)
-        doc.setTextColor(150)
-        doc.text("Confidential - For internal use only", 10, 290)
-        doc.text("© 2025 Samarth Caters", 160, 290)
+        // Add performance insights
+        pdf.addSectionHeader("Performance Insights");
+        const netProfit = stats.totalRevenue - stats.monthlyExpenses;
+        const profitMargin = stats.totalRevenue > 0 ? ((netProfit / stats.totalRevenue) * 100).toFixed(1) : 0;
+        
+        pdf.addText(`Net Profit: ${formatCurrency(netProfit)}`, { bold: true, color: netProfit >= 0 ? [40, 167, 69] : [220, 53, 69] });
+        pdf.addText(`Profit Margin: ${profitMargin}%`, { bold: true, color: parseFloat(profitMargin) >= 0 ? [40, 167, 69] : [220, 53, 69] });
+        pdf.addText(`Average Order Value: ${formatCurrency(stats.totalOrders > 0 ? stats.totalRevenue / stats.totalOrders : 0)}`, { bold: true });
 
         // Save PDF
-        doc.save(`Quick-Analytics-(${formatDateTime(new Date())}).pdf`)
+        pdf.save(`Quick-Analytics-${new Date().toISOString().split('T')[0]}.pdf`);
     }
 
     return (
@@ -312,7 +282,7 @@ export default function DashboardPage() {
                                 ) : (
                                     <div className="text-center py-8 text-gray-500">
                                         <Calendar className="h-12 w-12 mx-auto mb-4 opacity-50"/>
-                                        <p>{t('upcomingOrders.noOrders')}</p>
+                                        <p>No Upcoming Orders</p>
                                     </div>
                                 )}
                             </CardContent>
@@ -346,10 +316,10 @@ export default function DashboardPage() {
                                                   className="flex items-center justify-between  p-4 rounded-lg hover:bg-foreground/10 transition-colors border border-gray-200/10"
                                             >
                                                 <div>
-                                                    <h4 className="font-semibold ">{expense.title}</h4>
-                                                    <p className="text-sm capitalize text-muted-foreground">{expense.category.toLowerCase()}</p>
+                                                    <h4 className="font-semibold ">{expense.id}</h4>
+                                                    <p className="text-sm capitalize text-muted-foreground">{expense?.category?.toLowerCase()}</p>
                                                     <span className="text-xs text-muted-foreground">
-                                                  {formatDate(expense.date)}
+                                                  {expense?.expense_date ? formatDate(expense?.expense_date) : "--"}
                                                 </span>
                                                 </div>
                                                 <div className="text-right">

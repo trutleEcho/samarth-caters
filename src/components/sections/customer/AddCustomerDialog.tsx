@@ -14,6 +14,7 @@ import {
 } from '@/components/ui/dialog'
 import { toast } from 'sonner'
 import { useTranslations } from 'next-intl'
+import { api } from "@/lib/api";
 
 interface AddCustomerDialogProps {
     open: boolean
@@ -36,13 +37,7 @@ export default function AddCustomerDialog({ open, onOpenChange, onSuccess }: Add
         setLoading(true)
 
         try {
-            const response = await fetch('/api/customers', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify(formData),
-            })
+            const response = await api.post('/api/customers', formData)
 
             if (response.ok) {
                 const result = await response.json()
@@ -56,6 +51,8 @@ export default function AddCustomerDialog({ open, onOpenChange, onSuccess }: Add
                     email: '',
                     address: '',
                 })
+            } else if (response.status === 401) {
+                toast.error('Please login again')
             } else {
                 const error = await response.json()
                 toast.error(error.error || t('error'))

@@ -15,6 +15,7 @@ import {
 import {toast} from 'sonner'
 import {useTranslations} from 'next-intl'
 import {Customer} from '@/data/entities/customer'
+import { api } from "@/lib/api";
 
 interface CustomerDrawerProps {
     open: boolean
@@ -49,17 +50,13 @@ export default function CustomerDrawer({open, onOpenChange, customer, onSave}: C
         console.log(formData)
 
         try {
-            const response = await fetch('/api/customers', {
-                method: 'PUT',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify(formData),
-            })
+            const response = await api.put('/api/customers', formData)
             if (response.ok) {
                 onSave(formData)
                 toast.success(t('saveSuccess'))
                 onOpenChange(false)
+            } else if (response.status === 401) {
+                toast.error('Please login again')
             } else {
                 const error = await response.json()
                 toast.error(error.error || t('error'))

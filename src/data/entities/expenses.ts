@@ -1,9 +1,10 @@
 export interface Expenses {
     id: string
-    title: string
+    description: string
     amount: number
-    category: 'INGREDIENTS' | 'EQUIPMENT' | 'TRANSPORTATION' | 'STAFF' | 'MARKETING' | 'UTILITIES' | 'OTHER'
-    description?: string
-    date: string
+    category?: string
+    expense_date?: Date
+    notes?: string
     created_at: Date
+    updated_at?: Date
 }

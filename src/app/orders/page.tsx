@@ -23,6 +23,7 @@ import {
 import {useTranslations} from 'next-intl';
 import {ExpandedOrder} from "@/data/dto/expanded-order";
 import {ErrorBoundary} from "@/components/error-boundary";
+import { api } from "@/lib/api";
 
 export default function OrdersPage() {
     const t = useTranslations('orders');
@@ -57,16 +58,18 @@ export default function OrdersPage() {
     const fetchOrders = async () => {
         setLoading(true)
         try {
-            const response = await fetch('/api/orders')
+            const response = await api.get('/api/orders')
             if (response.ok) {
                 const data = await response.json()
                 setOrders(data)
                 setFilteredOrders(data)
                 if (data.length === 0) {
-                    toast.info(t('noOrders.toast'))
+                    toast.info("No orders found")
                 }
-            }
-            if (response.status === 500) {
+            } else if (response.status === 401) {
+                toast.error('Please login again')
+                // Redirect to login or handle auth error
+            } else if (response.status === 500) {
                 toast.error(`${t('errors.fetchFailed')}: ${response.statusText}`)
             }
         } catch (error) {
@@ -162,7 +165,7 @@ export default function OrdersPage() {
                         </TableHeader>
                         <TableBody>
                             {filteredOrders.map((order) => {
-                                const totalPaid = order.payments?.reduce((sum: number, p: any) => sum + (p.amount || 0), 0) || 0
+                                const totalPaid = order.payments?.reduce((sum: number, p: any) => sum + (parseFloat(p.amount) || 0), 0) || 0
                                 return (
                                     <TableRow
                                         key={order.order.id}

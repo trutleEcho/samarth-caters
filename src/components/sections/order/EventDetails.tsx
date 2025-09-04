@@ -30,9 +30,8 @@ import {ErrorBoundary} from "@/components/error-boundary";
 import {Menu} from "@/data/entities/menu";
 import MenuManager from "@/components/sections/order/MenuManager";
 import ConversionUtil from "@/utils/ConversionUtil";
-import autoTable from "jspdf-autotable";
-import {formatDateTime} from "@/lib/format";
-import jsPDF from "jspdf";
+import { PDFGenerator, formatCurrency, formatDateTime } from "@/lib/pdf-utils";
+import { api } from "@/lib/api";
 
 interface EventDetailsProps {
     event: Event;
@@ -94,15 +93,13 @@ export default function EventDetails({event, isEditing, onSaveAction, menu}: Eve
                 date: date
             };
 
-            const response = await fetch(`/api/event`, {
-                method: 'PUT',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify(updatedEvent),
-            });
+            const response = await api.put('/api/event', updatedEvent);
 
             if (!response.ok) {
+                if (response.status === 401) {
+                    toast.error('Authentication required. Please log in again.');
+                    return;
+                }
                 toast.error('Error updating event');
                 return
             }
@@ -120,15 +117,13 @@ export default function EventDetails({event, isEditing, onSaveAction, menu}: Eve
     const handleDelete = async () => {
         setLoading(true);
         try {
-            const response = await fetch(`/api/event`, {
-                method: 'DELETE',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify(event),
-            });
+            const response = await api.delete('/api/event', event);
 
             if (!response.ok) {
+                if (response.status === 401) {
+                    toast.error('Authentication required. Please log in again.');
+                    return;
+                }
                 toast.error('Error deleting event');
                 return
             }
@@ -144,92 +139,66 @@ export default function EventDetails({event, isEditing, onSaveAction, menu}: Eve
     };
 
     const genEventMenuPDF = async (event: Event, menu?: Menu) => {
-        const doc = new jsPDF("p", "mm", "a4")
+        const pdf = new PDFGenerator();
 
-        // ---------------- HEADER ----------------
-        const logoUrl = "/logo.png"
-        doc.addImage(logoUrl, "PNG", 10, 8, 40, 20)
+        // Add professional header
+        pdf.addHeader({
+            title: "Event Menu",
+            subtitle: event.name || "Event Details",
+            showDate: true
+        });
 
-        doc.setFont("helvetica", "bold")
-        doc.setFontSize(18)
-        doc.text("Samarth Caters", 60, 18)
-
-        doc.setFont("helvetica", "normal")
-        doc.setFontSize(12)
-        doc.setTextColor(80)
-        doc.text("Event Menu", 60, 26)
-
-        doc.setDrawColor(180)
-        doc.setLineWidth(0.5)
-        doc.line(10, 35, 200, 35)
-
-        let y = 45
-        doc.setTextColor(0)
-
-        // ---------------- EVENT DETAILS ----------------
-        doc.setFont("helvetica", "bold")
-        doc.setFontSize(13)
-        doc.text("Event Details", 10, y)
-
-        y += 10
-        doc.setFont("helvetica", "normal")
-        doc.setFontSize(11)
-        doc.text(`• Event: ${event.name || "—"}`, 15, y); y += 8
-        doc.text(`• Date: ${event.date ? formatDateTime(event.date) : "—"}`, 15, y); y += 8
-        doc.text(`• Venue: ${event.venue || "—"}`, 15, y); y += 8
-        doc.text(`• Guests: ${event.guest_count ?? "—"}`, 15, y); y += 8
+        // Add event details section
+        pdf.addSectionHeader("Event Details");
+        pdf.addText(`Event Name: ${event.name || "—"}`, { bold: true });
+        pdf.addText(`Date: ${event.date ? formatDateTime(event.date) : "—"}`);
+        pdf.addText(`Venue: ${event.venue || "—"}`);
+        pdf.addText(`Guest Count: ${event.guest_count ?? "—"}`);
         if (event.notes) {
-            doc.text("• Notes:", 15, y);
-            y += 6
-            doc.text(event.notes, 20, y, { maxWidth: 170 })
-            y += 12
-        } else {
-            y += 4
+            pdf.addText(`Notes: ${event.notes}`);
         }
 
-        // ---------------- MENU ----------------
-        doc.setFont("helvetica", "bold")
-        doc.setFontSize(13)
-        doc.text("Menu", 10, y)
-
-        y += 10
-        doc.setFont("helvetica", "normal")
-        doc.setFontSize(11)
-
-        if (menu?.items) {
+        // Add menu section
+        pdf.addSectionHeader("Menu Items");
+        const menuText = menu?.items || menu?.description || menu?.name;
+        if (menuText) {
             // Split items by new line instead of comma
-            const itemsList = menu.items
+            const itemsList = menuText
                 .split(/\r?\n/) // handles both Windows (\r\n) and Unix (\n) line endings
                 .map((item) => item.trim())
-                .filter((item) => item.length > 0) // remove empty lines
+                .filter((item) => item.length > 0); // remove empty lines
 
             if (itemsList.length > 0) {
-                autoTable(doc, {
-                    startY: y,
-                    head: [["Sr.No", "Item"]],
-                    body: itemsList.map((item, i) => [i + 1, item]),
-                    headStyles: { fillColor: [52, 73, 94], textColor: 255, halign: "center" },
-                    styles: { fontSize: 11, cellPadding: 4 },
-                })
-                y = (doc.lastAutoTable?.finalY ?? y) + 10
+                const menuData = itemsList.map((item, index) => ({
+                    sr: index + 1,
+                    item: item,
+                    category: "Main Course" // You could categorize items if needed
+                }));
+
+                pdf.addTable(menuData, [
+                    { header: "Sr.", dataKey: "sr", width: 15, align: "center" },
+                    { header: "Menu Item", dataKey: "item", width: 120 },
+                    { header: "Category", dataKey: "category", width: 55 }
+                ]);
             } else {
-                doc.text("No menu items provided.", 15, y)
-                y += 10
+                pdf.addText("No menu items provided.", { color: [120, 120, 120] });
             }
         } else {
-            doc.text("No menu items provided.", 15, y)
-            y += 10
+            pdf.addText("No menu items provided.", { color: [120, 120, 120] });
         }
 
-
-        // ---------------- FOOTER ----------------
-        doc.setFontSize(9)
-        doc.setTextColor(150)
-        doc.text("Prepared for kitchen & service staff", 10, 290)
-        doc.text("© 2025 Samarth Caters", 160, 290)
+        // Add event summary
+        pdf.addSectionHeader("Event Summary");
+        pdf.addSummaryBox([
+            { label: "Event Name", value: event.name || "—", color: [34, 153, 84] },
+            { label: "Date", value: event.date ? formatDateTime(event.date) : "—", color: [255, 193, 7] },
+            { label: "Venue", value: event.venue || "—", color: [108, 117, 125] },
+            { label: "Guest Count", value: event.guest_count?.toString() || "—", color: [40, 167, 69] },
+            { label: "Status", value: event.status, color: [220, 53, 69] }
+        ]);
 
         // Save PDF
-        doc.save(`Event-Menu-${event.name || event.id}.pdf`)
+        pdf.save(`Event-Menu-${event.name || event.id}.pdf`);
     }
 
     return (

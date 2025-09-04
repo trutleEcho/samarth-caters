@@ -1,85 +1,73 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from "@/utils/supabase/server";
+import { sql } from '@/lib/database';
+import { getCurrentUser } from '@/lib/auth';
 import {EventStatus} from "@/data/enums/event-status";
 
 export async function GET(request: NextRequest) {
   try {
-    const supabase = await createClient();
+    const user = await getCurrentUser(request);
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     const url = new URL(request.url);
     const eventId = url.searchParams.get('id');
 
     if (eventId) {
       // Fetch specific event
-      const { data: event, error: eventError } = await supabase
-        .from('events')
-        .select('*')
-        .eq('id', eventId)
-        .single();
+      const event = await sql`
+        SELECT * FROM events WHERE id = ${eventId}
+      `;
 
-      if (eventError) {
-        return NextResponse.json({ error: eventError.message }, { status: 500 });
+      if (event.length === 0) {
+        return NextResponse.json({ error: 'Event not found' }, { status: 404 });
       }
 
       // Fetch related data
-      const { data: order } = await supabase
-        .from('orders')
-        .select('*')
-        .eq('id', event.order_id)
-        .single();
+      const order = await sql`
+        SELECT * FROM orders WHERE id = ${event[0].order_id}
+      `;
 
-      const { data: customer } = await supabase
-        .from('customers')
-        .select('*')
-        .eq('id', order?.customer_id)
-        .single();
+      const customer = await sql`
+        SELECT * FROM customers WHERE id = ${order[0]?.customer_id}
+      `;
 
-      const { data: menus } = await supabase
-        .from('menus')
-        .select('*')
-        .eq('event_id', event.id);
+      const menus = await sql`
+        SELECT * FROM menus WHERE event_id = ${eventId}
+      `;
 
       return NextResponse.json({
-        event,
-        order,
-        customer,
+        event: event[0],
+        order: order[0],
+        customer: customer[0],
         menus: menus || []
       });
     }
 
     // Fetch all events
-    const { data: events, error: eventsError } = await supabase
-      .from('events')
-      .select('*')
-      .order('created_at', { ascending: false });
-
-    if (eventsError) {
-      return NextResponse.json({ error: eventsError.message }, { status: 500 });
-    }
+    const events = await sql`
+      SELECT * FROM events ORDER BY created_at DESC
+    `;
 
     // Expand events with related data
     const expandedEvents = await Promise.all(
-      (events || []).map(async (event) => {
-        const { data: order } = await supabase
-          .from('orders')
-          .select('*')
-          .eq('id', event.order_id)
-          .single();
+      events.map(async (event) => {
+        const order = await sql`
+          SELECT * FROM orders WHERE id = ${event.order_id}
+        `;
 
-        const { data: customer } = await supabase
-          .from('customers')
-          .select('*')
-          .eq('id', order?.customer_id)
-          .single();
+        const customer = await sql`
+          SELECT * FROM customers WHERE id = ${order[0]?.customer_id}
+        `;
 
-        const { data: menus } = await supabase
-          .from('menus')
-          .select('*')
-          .eq('event_id', event.id);
+        const menus = await sql`
+          SELECT * FROM menus WHERE event_id = ${event.id}
+        `;
 
         return {
           event,
-          order,
-          customer,
+          order: order[0],
+          customer: customer[0],
           menus: menus || [],
         };
       })
@@ -94,8 +82,12 @@ export async function GET(request: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
+    const user = await getCurrentUser(req);
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     const body = await req.json();
-    const supabase = await createClient();
 
     // Validate required fields
     if (!body.order_id) {
@@ -103,52 +95,35 @@ export async function POST(req: NextRequest) {
     }
 
     // Get order details
-    const { data: order, error: orderFetchError } = await supabase
-      .from('orders')
-      .select('*')
-      .eq('id', body.order_id)
-      .single();
+    const order = await sql`
+      SELECT * FROM orders WHERE id = ${body.order_id}
+    `;
 
-    if (orderFetchError) {
-      console.error('Order fetch error:', orderFetchError.message);
-      return NextResponse.json({ error: orderFetchError.message }, { status: 500 });
+    if (order.length === 0) {
+      return NextResponse.json({ error: 'Order not found' }, { status: 404 });
     }
 
-    const totalAmount = order?.total_amount + body.amount
+    const totalAmount = (order[0].total_amount || 0) + (body.amount || 0);
 
-    const { error: orderUpdateError } = await supabase
-      .from('orders')
-      .update({ total_amount: totalAmount })
-      .eq('id', body.order_id)
-      .select('*')
-      .single();
-
-    if (orderUpdateError) {
-      console.error('Order update error:', orderUpdateError.message);
-      return NextResponse.json({ error: orderUpdateError.message }, { status: 500 });
-    }
-
-    // Build insert payload with defaults
-    const finalRequest = {
-      ...body,
-      name: body.name || 'New Event',
-      status: body.status || EventStatus.Received,
-      created_at: new Date().toISOString(),
-    };
+    // Update order total amount
+    await sql`
+      UPDATE orders 
+      SET total_amount = ${totalAmount}, updated_at = NOW()
+      WHERE id = ${body.order_id}
+    `;
 
     // Insert new event
-    const { data: createdEvent, error: eventError } = await supabase
-      .from('events')
-      .insert([finalRequest])
-      .select('*')
-      .single();
+    const createdEvent = await sql`
+      INSERT INTO events (id, order_id, name, date, venue, guest_count, status, notes, amount, created_at)
+      VALUES (gen_random_uuid(), ${body.order_id}, ${body.name || 'New Event'}, 
+              ${body.date ? new Date(body.date).toISOString() : null}, 
+              ${body.venue || null}, ${body.guest_count || null}, 
+              ${body.status || EventStatus.Received}, ${body.notes || null}, 
+              ${body.amount || 0}, NOW())
+      RETURNING *
+    `;
 
-    if (eventError || !createdEvent) {
-      console.error('Event creation error:', eventError?.message);
-      return NextResponse.json({ error: eventError?.message }, { status: 500 });
-    }
-
-    return NextResponse.json({ success: true, event: createdEvent });
+    return NextResponse.json({ success: true, event: createdEvent[0] });
   } catch (error: any) {
     console.error('Error creating event:', error);
     return NextResponse.json({ error: error.message }, { status: 500 });
@@ -157,72 +132,60 @@ export async function POST(req: NextRequest) {
 
 export async function PUT(req: NextRequest) {
   try {
+    const user = await getCurrentUser(req);
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     const body = await req.json();
-    const supabase = await createClient();
-    const eventId = body.id
+    const eventId = body.id;
 
     if (!eventId) {
       return NextResponse.json({ error: 'Event ID is required' }, { status: 400 });
     }
 
-    // Optional: parse date string back to JS Date
-    const updateData = {
-      ...body,
-      date: body.date ? new Date(body.date).toISOString() : null,
-    };
+    // Get current event and order details
+    const event = await sql`
+      SELECT * FROM events WHERE id = ${eventId}
+    `;
 
-    const { data: order, error: orderError } = await supabase
-        .from('orders')
-        .select('*')
-        .eq('id', body?.order_id)
-        .single();
-
-    if (orderError) {
-      console.error('Order fetch error:', orderError.message);
-      return NextResponse.json({ error: orderError.message }, { status: 500 });
+    if (event.length === 0) {
+      return NextResponse.json({ error: 'Event not found' }, { status: 404 });
     }
 
-    const { data: event, error: eventError } = await supabase
-      .from('events')
-      .select('*')
-      .eq('id', eventId)
-      .single();
+    const order = await sql`
+      SELECT * FROM orders WHERE id = ${body.order_id}
+    `;
 
-    if (eventError) {
-      console.error('Event fetch error:', eventError.message);
-      return NextResponse.json({ error: eventError.message }, { status: 500 });
+    if (order.length === 0) {
+      return NextResponse.json({ error: 'Order not found' }, { status: 404 });
     }
 
-    const updatedTotalAmount =(Number(order?.total_amount) - Number(event?.amount) + Number(body?.amount)) || 0;
+    const updatedTotalAmount = (Number(order[0].total_amount) - Number(event[0].amount) + Number(body.amount)) || 0;
 
     // Update event
-    const { data: updatedEvent, error: updateError } = await supabase
-      .from('events')
-      .update(updateData)
-      .eq('id', eventId)
-      .select('*')
-      .single();
+    const updatedEvent = await sql`
+      UPDATE events 
+      SET name = ${body.name || event[0].name}, 
+          date = ${body.date ? new Date(body.date).toISOString() : event[0].date}, 
+          venue = ${body.venue || event[0].venue}, 
+          guest_count = ${body.guest_count || event[0].guest_count}, 
+          status = ${body.status || event[0].status}, 
+          notes = ${body.notes || event[0].notes}, 
+          amount = ${body.amount || event[0].amount}, 
+          updated_at = NOW()
+      WHERE id = ${eventId}
+      RETURNING *
+    `;
 
-    if (updateError) {
-      console.error('Event update error:', updateError.message);
-      return NextResponse.json({ error: updateError.message }, { status: 500 });
-    }
+    // Update order total amount
+    await sql`
+      UPDATE orders 
+      SET total_amount = ${updatedTotalAmount}, updated_at = NOW()
+      WHERE id = ${body.order_id}
+    `;
 
-    const {error: updateOrderError} = await supabase
-        .from('orders')
-        .update({
-          total_amount: updatedTotalAmount
-        })
-        .eq('id', body?.order_id)
-        .select('*')
-        .single();
-
-    if (updateOrderError) {
-      console.error('Order update error:', updateOrderError.message);
-      return NextResponse.json({ error: updateOrderError.message }, { status: 500 });
-    }
-
-    return NextResponse.json({ success: true, event: updatedEvent });
+    return NextResponse.json({ success: true, event: updatedEvent[0] });
   } catch (error: any) {
     console.error('Error updating event:', error);
     return NextResponse.json({ error: error.message }, { status: 500 });
@@ -231,63 +194,48 @@ export async function PUT(req: NextRequest) {
 
 export async function DELETE(req: NextRequest) {
   try {
+    const user = await getCurrentUser(req);
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     const body = await req.json();
-    const supabase = await createClient();
-    const eventId = body.id
+    const eventId = body.id;
 
     if (!eventId) {
       return NextResponse.json({ error: 'Event ID is required' }, { status: 400 });
     }
 
     // Get event details before deletion for balance update
-    const { data: event, error: eventFetchError } = await supabase
-      .from('events')
-      .select('*')
-      .eq('id', eventId)
-      .single();
+    const event = await sql`
+      SELECT * FROM events WHERE id = ${eventId}
+    `;
 
-    if (eventFetchError) {
-      console.error('Event fetch error:', eventFetchError.message);
-      return NextResponse.json({ error: eventFetchError.message }, { status: 500 });
+    if (event.length === 0) {
+      return NextResponse.json({ error: 'Event not found' }, { status: 404 });
     }
 
-    const { data: order, error: orderFetchError } = await supabase
-      .from('orders')
-      .select('*')
-      .eq('id', event?.order_id)
-      .single();
+    const order = await sql`
+      SELECT * FROM orders WHERE id = ${event[0].order_id}
+    `;
 
-    if (orderFetchError) {
-      console.error('Order fetch error:', orderFetchError.message);
-      return NextResponse.json({ error: orderFetchError.message }, { status: 500 });
+    if (order.length === 0) {
+      return NextResponse.json({ error: 'Order not found' }, { status: 404 });
     }
 
-    const updatedTotalAmount = (Number(order?.total_amount) - Number(event?.amount)) || 0;
+    const updatedTotalAmount = (Number(order[0].total_amount) - Number(event[0].amount)) || 0;
 
-    const {error: updateOrderError} = await supabase
-      .from('orders')
-      .update({
-        total_amount: updatedTotalAmount
-      })
-      .eq('id', event?.order_id)
-      .select('*')
-      .single();
+    // Update order total amount
+    await sql`
+      UPDATE orders 
+      SET total_amount = ${updatedTotalAmount}, updated_at = NOW()
+      WHERE id = ${event[0].order_id}
+    `;
 
-    if (updateOrderError) {
-      console.error('Order update error:', updateOrderError.message);
-      return NextResponse.json({ error: updateOrderError.message }, { status: 500 });
-    }
-
-    // Delete event
-    const { error: deleteError } = await supabase
-      .from('events')
-      .delete()
-      .eq('id', eventId);
-
-    if (deleteError) {
-      console.error('Event deletion error:', deleteError.message);
-      return NextResponse.json({ error: deleteError.message }, { status: 500 });
-    }
+    // Delete event (cascade will handle related records)
+    await sql`
+      DELETE FROM events WHERE id = ${eventId}
+    `;
 
     return NextResponse.json({ success: true });
   } catch (error: any) {

@@ -20,6 +20,7 @@ import { useTranslations } from 'next-intl';
 import {Customer} from "@/data/entities/customer";
 import AddCustomerDialog from '@/components/sections/customer/AddCustomerDialog'
 import CustomerDrawer from '@/components/sections/customer/CustomerDrawer'
+import { api } from "@/lib/api";
 
 export default function CustomersPage() {
     const t = useTranslations('customers');
@@ -48,7 +49,7 @@ export default function CustomersPage() {
 
     const fetchCustomers = async () => {
         try {
-            const response = await fetch('/api/customers')
+            const response = await api.get('/api/customers')
             if (response.ok) {
                 const data = await response.json()
                 // Convert string dates to Date objects
@@ -62,6 +63,8 @@ export default function CustomersPage() {
                 if (data.length === 0) {
                     toast.info(t('noCustomers.message'))
                 }
+            } else if (response.status === 401) {
+                toast.error('Please login again')
             } else {
                 toast.error(t('fetchError'))
             }
