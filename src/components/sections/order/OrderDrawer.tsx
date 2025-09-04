@@ -10,11 +10,9 @@ import {ExpandedOrder} from "@/data/dto/expanded-order";
 import {ErrorBoundary} from "@/components/error-boundary";
 import ConversionUtil from "@/utils/ConversionUtil";
 import {Tabs, TabsContent, TabsList, TabsTrigger} from '@/components/ui/tabs';
-import jsPDF from "jspdf";
-import autoTable from "jspdf-autotable";
+import { PDFGenerator, formatCurrency, formatDateTime } from "@/lib/pdf-utils";
 import {Button} from "@/components/ui/button";
 import {Download} from "lucide-react";
-import {formatDateTime} from "@/lib/format";
 
 export default function OrderDrawer({open, onOpenChange, order, onSaveAction}: {
     open: boolean,
@@ -27,132 +25,86 @@ export default function OrderDrawer({open, onOpenChange, order, onSaveAction}: {
     if (!order) return null;
 
     const genOrderPDF = async (order: ExpandedOrder) => {
-        const doc = new jsPDF("p", "mm", "a4")
+        const pdf = new PDFGenerator();
 
-        // ---------------- HEADER ----------------
-        const logoUrl = "/logo.png" // from public/
-        doc.addImage(logoUrl, "PNG", 10, 8, 40, 20)
+        // Add professional header
+        pdf.addHeader({
+            title: "Order Invoice",
+            subtitle: `Order #${order.order.order_number || order.order.id}`,
+            showDate: true
+        });
 
-        // Company name
-        doc.setFont("helvetica", "bold")
-        doc.setFontSize(20)
-        doc.text("Samarth Caters", 55, 20)
-
-        // Report title
-        doc.setFont("helvetica", "normal")
-        doc.setFontSize(14)
-        doc.setTextColor(80)
-        doc.text("Order Invoice", 55, 28)
-
-        // Date
-        doc.setFontSize(10)
-        doc.setTextColor(120)
-        doc.text(`Generated on: ${formatDateTime(new Date())}`, 55, 34)
-
-        // Line separator
-        doc.setDrawColor(180)
-        doc.setLineWidth(0.5)
-        doc.line(10, 40, 200, 40)
-
-        let y = 50
-        doc.setTextColor(0)
-
-        // ---------------- CUSTOMER DETAILS ----------------
-        doc.setFont("helvetica", "bold")
-        doc.setFontSize(13)
-        doc.text("1. Customer Details", 10, y)
-
-        y += 10
-        doc.setFont("helvetica", "normal")
-        doc.setFontSize(11)
-        doc.text(`• Name: ${order.customer.name}`, 15, y); y += 8
-        doc.text(`• Phone: ${order.customer.phone_number}`, 15, y); y += 8
-        if (order.customer.email) { doc.text(`• Email: ${order.customer.email}`, 15, y); y += 8 }
+        // Add customer details section
+        pdf.addSectionHeader("Customer Details");
+        pdf.addText(`Name: ${order.customer.name}`, { bold: true });
+        pdf.addText(`Phone: ${order.customer.phone_number}`);
+        if (order.customer.email) {
+            pdf.addText(`Email: ${order.customer.email}`);
+        }
         if (order.customer.address) {
-            doc.text("• Address:", 15, y)
-            y += 6
-            doc.text(order.customer.address, 20, y, { maxWidth: 170 })
-            y += 12
+            pdf.addText(`Address: ${order.customer.address}`);
         }
 
-        // ---------------- EVENTS ----------------
-        doc.setFont("helvetica", "bold")
-        doc.setFontSize(13)
-        doc.text("2. Events", 10, y)
-
+        // Add events section
+        pdf.addSectionHeader("Events");
         if (order.events.length > 0) {
-            autoTable(doc, {
-                startY: y + 5,
-                head: [["Sr.No", "Event", "Date", "Venue", "Guests", "Amount"]],
-                body: order.events.map((event, i) => [
-                    i + 1,
-                    event.name || "—",
-                    event.date ? formatDateTime(new Date(event.date)) : "—",
-                    event.venue || "—",
-                    event.guest_count?.toString() || "—",
-                    event.amount ? `INR ${event.amount.toLocaleString("en-IN")}` : "—",
-                ]),
-                headStyles: { fillColor: [60, 141, 188], textColor: 255, halign: "center" },
-                styles: { fontSize: 10, cellPadding: 4 },
-            })
-            y = (doc.lastAutoTable?.finalY ?? y) + 10
+            const eventsData = order.events.map((event, index) => ({
+                sr: index + 1,
+                name: event.name || "—",
+                date: event.date ? formatDateTime(new Date(event.date)) : "—",
+                venue: event.venue || "—",
+                guests: event.guest_count?.toString() || "—",
+                amount: event.amount ? formatCurrency(event.amount) : "—"
+            }));
+
+            pdf.addTable(eventsData, [
+                { header: "Sr.", dataKey: "sr", width: 15, align: "center" },
+                { header: "Event", dataKey: "name", width: 50 },
+                { header: "Date", dataKey: "date", width: 50 },
+                { header: "Venue", dataKey: "venue", width: 40 },
+                { header: "Guests", dataKey: "guests", width: 20, align: "center" },
+                { header: "Amount", dataKey: "amount", width: 25, align: "right" }
+            ]);
         } else {
-            doc.setFont("helvetica", "normal")
-            doc.setFontSize(11)
-            doc.text("No events found.", 15, y + 8)
-            y += 15
+            pdf.addText("No events found.", { color: [120, 120, 120] });
         }
 
-        // ---------------- PAYMENTS ----------------
-        doc.setFont("helvetica", "bold")
-        doc.setFontSize(13)
-        doc.text("3. Payments", 10, y)
-
+        // Add payments section
+        pdf.addSectionHeader("Payments");
         if (order.payments.length > 0) {
-            autoTable(doc, {
-                startY: y + 5,
-                head: [["Sr.No", "Payment ID", "Method", "Amount", "Date"]],
-                body: order.payments.map((p, i) => [
-                    i + 1,
-                    p.payment_id,
-                    p.payment_method,
-                    `INR ${p.amount.toLocaleString("en-IN")}`,
-                    formatDateTime(new Date(p.created_at)),
-                ]),
-                headStyles: { fillColor: [34, 153, 84], textColor: 255, halign: "center" },
-                styles: { fontSize: 10, cellPadding: 4 },
-            })
-            y = (doc.lastAutoTable?.finalY ?? y) + 10
+            const paymentsData = order.payments.map((payment, index) => ({
+                sr: index + 1,
+                paymentId: payment.payment_id,
+                method: payment.payment_method,
+                amount: formatCurrency(payment.amount),
+                date: formatDateTime(new Date(payment.created_at))
+            }));
+
+            pdf.addTable(paymentsData, [
+                { header: "Sr.", dataKey: "sr", width: 15, align: "center" },
+                { header: "Payment ID", dataKey: "paymentId", width: 50 },
+                { header: "Method", dataKey: "method", width: 30 },
+                { header: "Amount", dataKey: "amount", width: 30, align: "right" },
+                { header: "Date", dataKey: "date", width: 65 }
+            ]);
         } else {
-            doc.setFont("helvetica", "normal")
-            doc.setFontSize(11)
-            doc.text("No payments recorded.", 15, y + 8)
-            y += 15
+            pdf.addText("No payments recorded.", { color: [120, 120, 120] });
         }
 
-        // ---------------- SUMMARY ----------------
-        doc.setFont("helvetica", "bold")
-        doc.setFontSize(13)
-        doc.text("4. Summary", 10, y)
-
-        y += 10
-        doc.setFont("helvetica", "normal")
-        doc.setFontSize(11)
-        doc.text(`• Total Amount: INR ${order.order.total_amount.toLocaleString("en-IN")}`, 15, y)
-        y += 8
-        if (order.order.balance !== undefined) {
-            doc.text(`• Balance: INR ${(order.order.total_amount -order.order.balance).toLocaleString("en-IN")}`, 15, y)
-            y += 8
-        }
-
-        // ---------------- FOOTER ----------------
-        doc.setFontSize(9)
-        doc.setTextColor(150)
-        doc.text("Thank you for choosing Samarth Caters!", 10, 290)
-        doc.text("© 2025 Samarth Caters", 160, 290)
+        // Add summary section
+        pdf.addSectionHeader("Order Summary");
+        const totalPaid = order.payments.reduce((sum, payment) => sum + payment.amount, 0);
+        const balance = order.order.balance || (order.order.total_amount - totalPaid);
+        
+        pdf.addSummaryBox([
+            { label: "Total Amount", value: formatCurrency(order.order.total_amount), color: [34, 153, 84] },
+            { label: "Total Paid", value: formatCurrency(totalPaid), color: [40, 167, 69] },
+            { label: "Balance", value: formatCurrency(balance), color: balance > 0 ? [220, 53, 69] : [40, 167, 69] },
+            { label: "Status", value: order.order.status, color: [255, 193, 7] }
+        ]);
 
         // Save PDF
-        doc.save(`Order-${order.order.order_number}.pdf`)
+        pdf.save(`Order-${order.order.order_number || order.order.id}.pdf`);
     }
 
     return (
@@ -184,7 +136,7 @@ export default function OrderDrawer({open, onOpenChange, order, onSaveAction}: {
                         </DrawerTitle>
                         <Separator className="my-4"/>
                         <DrawerDescription>
-                            <div className="space-y-4">
+                            <span className="space-y-4">
                                 <span className="flex flex-row items-start justify-between">
                                     <span className="text-xs text-muted-foreground">
                                         {t('name')}: <span className="text-lg font-semibold text-foreground">
@@ -202,8 +154,8 @@ export default function OrderDrawer({open, onOpenChange, order, onSaveAction}: {
                                         </span>
                                     </span>
                                 </span>
-                                <div className="flex flex-row items-start justify-between">
-                                    <div className="flex flex-col items-start gap-2">
+                                <span className="flex flex-row items-start justify-between">
+                                    <span className="flex flex-col items-start gap-2">
                                         <span className="text-xs text-muted-foreground">
                                         {t('email')}: <span className="text-lg font-semibold text-foreground">
                                             {order.customer.email ?? '-'}
@@ -213,8 +165,8 @@ export default function OrderDrawer({open, onOpenChange, order, onSaveAction}: {
                                             <Download className="mr-2 h-4 w-4" />
                                             Download
                                         </Button>
-                                    </div>
-                                    <div className="flex flex-col items-end">
+                                    </span>
+                                    <span className="flex flex-col items-end">
                                         <span className="text-xs text-muted-foreground">
                                             {t('total')}: <span className="text-lg font-semibold text-foreground">
                                                 {ConversionUtil.toRupees(order.order.total_amount || 0)}
@@ -222,12 +174,12 @@ export default function OrderDrawer({open, onOpenChange, order, onSaveAction}: {
                                         </span>
                                         <span className="text-xs text-muted-foreground">
                                             {t('balance')}: <span className="text-lg font-semibold text-foreground">
-                                                {ConversionUtil.toRupees((order.order.total_amount - (order.order.balance || 0)) || 0)}
+                                                {ConversionUtil.toRupees(order.order.balance || 0)}
                                             </span>
                                         </span>
-                                    </div>
-                                </div>
-                            </div>
+                                    </span>
+                                </span>
+                            </span>
                         </DrawerDescription>
                     </DrawerHeader>
                     <div className="p-4 md:p-6">

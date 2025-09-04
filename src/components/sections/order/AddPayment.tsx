@@ -9,6 +9,7 @@ import { Separator } from '@/components/ui/separator';
 import { toast } from "sonner";
 import { IndianRupee } from "lucide-react";
 import { useTranslations } from "next-intl";
+import { api } from "@/lib/api";
 import { PaymentMethod } from "@/data/enums/payment-method";
 import { PaymentEntityType } from "@/data/enums/payment-entity-type";
 import {
@@ -62,11 +63,7 @@ export default function AddPayment({ onAdd, orderId }: AddPaymentProps) {
         created_at: new Date().toISOString()
       };
 
-      const response = await fetch('/api/payment', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(request)
-      });
+      const response = await api.post('/api/payment', request);
 
       if (response.ok) {
         const result = await response.json();
@@ -82,6 +79,8 @@ export default function AddPayment({ onAdd, orderId }: AddPaymentProps) {
 
         // Call onAdd with the created payment
         onAdd(result.payment);
+      } else if (response.status === 401) {
+        toast.error('Please login again');
       } else {
         const errorData = await response.json();
         toast.error(`${t('errors.createFailed')}: ${errorData.error || response.statusText}`);

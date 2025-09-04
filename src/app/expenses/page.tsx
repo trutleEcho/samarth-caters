@@ -16,19 +16,21 @@ import {Textarea} from '@/components/ui/textarea'
 import {Table, TableBody, TableCell, TableHead, TableHeader, TableRow} from '@/components/ui/table'
 import {Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription} from '@/components/ui/drawer'
 import {Edit, Trash2} from 'lucide-react'
-import {formatCurrency, formatDate} from '@/lib/format'
+import {formatDate} from '@/lib/format'
 import {toast} from "sonner";
 import StatCard from "@/components/ui/stat-card";
-import jsPDF from "jspdf";
-import autoTable from "jspdf-autotable";
+import { PDFGenerator, formatCurrency, formatDateTime } from "@/lib/pdf-utils";
+import { api } from "@/lib/api";
 
 interface Expense {
     id: string
-    title: string
+    description: string
     amount: number
-    category: string
-    description?: string
-    date: string
+    category?: string
+    expense_date?: string
+    notes?: string
+    created_at: string
+    updated_at?: string
 }
 
 const categoryColors: { [key: string]: string } = {
@@ -52,11 +54,11 @@ export default function ExpensesPage() {
     const [drawerOpen, setDrawerOpen] = useState(false)
     const [selectedExpense, setSelectedExpense] = useState<Expense | null>(null)
     const [formData, setFormData] = useState({
-        title: '',
+        description: '',
         amount: '',
         category: '',
-        description: '',
-        date: new Date().toISOString().split('T')[0]
+        notes: '',
+        expense_date: new Date().toISOString().split('T')[0]
     })
 
     useEffect(() => {
@@ -68,8 +70,8 @@ export default function ExpensesPage() {
 
         if (searchTerm) {
             filtered = filtered.filter(expense =>
-                expense.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                expense.description?.toLowerCase().includes(searchTerm.toLowerCase())
+                expense.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                expense.notes?.toLowerCase().includes(searchTerm.toLowerCase())
             )
         }
 
@@ -79,7 +81,7 @@ export default function ExpensesPage() {
 
         if (dateRange.from && dateRange.to) {
             filtered = filtered.filter(expense => {
-                const expenseDate = new Date(expense.date)
+                const expenseDate = new Date(expense.expense_date || expense.created_at)
                 const fromDate = new Date(dateRange.from)
                 const toDate = new Date(dateRange.to)
                 fromDate.setHours(0, 0, 0, 0)
@@ -94,7 +96,7 @@ export default function ExpensesPage() {
     const fetchExpenses = async () => {
         setLoading(true)
         try {
-            const response = await fetch('/api/expenses')
+            const response = await api.get('/api/expenses')
             if (response.ok) {
                 const data = await response.json()
                 setExpenses(data)
@@ -102,8 +104,9 @@ export default function ExpensesPage() {
                 if (data.length === 0) {
                     toast.info('No expenses found')
                 }
-            }
-            if (response.status === 500) {
+            } else if (response.status === 401) {
+                toast.error('Please login again')
+            } else if (response.status === 500) {
                 toast.error(`Error fetching expenses: ${response.statusText}`)
             }
         } catch (error) {
@@ -118,25 +121,22 @@ export default function ExpensesPage() {
         e.preventDefault()
 
         try {
-            const response = await fetch('/api/expenses', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify(formData)
-            })
+            const response = await api.post('/api/expenses', formData)
 
             if (response.ok) {
                 toast.success('Expense added successfully')
                 setIsDialogOpen(false)
                 setFormData({
-                    title: '',
+                    description: '',
                     amount: '',
                     category: '',
-                    description: '',
-                    date: new Date().toISOString().split('T')[0]
+                    notes: '',
+                    expense_date: new Date().toISOString().split('T')[0]
                 })
                 fetchExpenses()
-            }
-            if (response.status === 500) {
+            } else if (response.status === 401) {
+                toast.error('Please login again')
+            } else if (response.status === 500) {
                 toast.error(`Failed to create expense: ${response.statusText}`)
             }
         } catch (error) {
@@ -147,12 +147,12 @@ export default function ExpensesPage() {
 
     const totalExpenses = expenses.reduce((sum, expense) => sum + expense.amount, 0)
     const thisMonth = expenses.filter(expense =>
-        new Date(expense.date).getMonth() === new Date().getMonth() &&
-        new Date(expense.date).getFullYear() === new Date().getFullYear()
+        new Date(expense.expense_date || expense.created_at).getMonth() === new Date().getMonth() &&
+        new Date(expense.expense_date || expense.created_at).getFullYear() === new Date().getFullYear()
     ).reduce((sum, expense) => sum + expense.amount, 0)
 
     const lastMonth = expenses.filter(expense => {
-        const date = new Date(expense.date)
+        const date = new Date(expense.expense_date || expense.created_at)
         const lastMonthDate = new Date()
         lastMonthDate.setMonth(lastMonthDate.getMonth() - 1)
         return date.getMonth() === lastMonthDate.getMonth() &&
@@ -180,74 +180,73 @@ export default function ExpensesPage() {
     }
 
     const genExpensesPDF = () => {
-        const doc = new jsPDF("p", "mm", "a4")
+        const pdf = new PDFGenerator();
 
-        // ---------------- HEADER ----------------
-        const logoUrl = "/logo.png"
-        doc.addImage(logoUrl, "PNG", 10, 8, 40, 20)
+        // Add professional header
+        pdf.addHeader({
+            title: "Expenses Report",
+            subtitle: "Business Expense Analysis",
+            showDate: true
+        });
 
-        doc.setFont("helvetica", "bold")
-        doc.setFontSize(18)
-        doc.text("Samarth Caters", 60, 18)
+        // Add summary section
+        pdf.addSectionHeader("Expense Summary");
+        pdf.addSummaryBox([
+            { label: "Total Expenses", value: formatCurrency(totalExpenses), color: [220, 53, 69] },
+            { label: "This Month", value: formatCurrency(thisMonth), color: [255, 193, 7] },
+            { label: "Last Month", value: formatCurrency(lastMonth), color: [108, 117, 125] },
+            { label: "Monthly Change", value: `${monthlyChange.toFixed(1)}%`, color: monthlyChange >= 0 ? [220, 53, 69] : [40, 167, 69] }
+        ]);
 
-        doc.setFont("helvetica", "normal")
-        doc.setFontSize(12)
-        doc.setTextColor(80)
-        doc.text("Expenses Report", 60, 26)
-
-        doc.setFontSize(10)
-        doc.setTextColor(120)
-        doc.text(`Generated on: ${new Date().toLocaleString("en-IN")}`, 60, 32)
-
-        doc.setDrawColor(180)
-        doc.setLineWidth(0.5)
-        doc.line(10, 38, 200, 38)
-
-        let y = 48
-        doc.setTextColor(0)
-
-        // ---------------- EXPENSES TABLE ----------------
+        // Add expenses table
+        pdf.addSectionHeader("Expense Details");
         if (expenses.length > 0) {
-            autoTable(doc, {
-                startY: y,
-                head: [["Sr.No", "Title", "Category", "Amount (INR)", "Date"]],
-                body: expenses.map((exp, i) => [
-                    i + 1,
-                    exp.title,
-                    exp.category,
-                    exp.amount.toLocaleString("en-IN"),
-                    formatDate(exp.date),
-                ]),
-                headStyles: { fillColor: [192, 57, 43], textColor: 255, halign: "center" },
-                styles: { fontSize: 10, cellPadding: 4 },
-            })
-            y = (doc.lastAutoTable?.finalY ?? y) + 10
+            const expensesData = expenses.map((expense, index) => ({
+                sr: index + 1,
+                description: expense.description,
+                category: expense.category || "Other",
+                amount: formatCurrency(expense.amount),
+                date: formatDateTime(expense.expense_date || expense.created_at),
+                notes: expense.notes || "—"
+            }));
+
+            pdf.addTable(expensesData, [
+                { header: "Sr.", dataKey: "sr", width: 15, align: "center" },
+                { header: "Description", dataKey: "description", width: 60 },
+                { header: "Category", dataKey: "category", width: 30 },
+                { header: "Amount", dataKey: "amount", width: 30, align: "right" },
+                { header: "Date", dataKey: "date", width: 55 }
+            ]);
         } else {
-            doc.setFont("helvetica", "normal")
-            doc.setFontSize(11)
-            doc.text("No expenses recorded.", 15, y)
-            y += 15
+            pdf.addText("No expenses recorded.", { color: [120, 120, 120] });
         }
 
-        // ---------------- SUMMARY ----------------
-        const totalExpenses = expenses.reduce((sum, exp) => sum + exp.amount, 0)
-        doc.setFont("helvetica", "bold")
-        doc.setFontSize(13)
-        doc.text("Summary", 10, y)
+        // Add category breakdown
+        if (expenses.length > 0) {
+            pdf.addSectionHeader("Category Breakdown");
+            const categoryTotals = expenses.reduce((acc, expense) => {
+                const category = expense.category || "Other";
+                acc[category] = (acc[category] || 0) + expense.amount;
+                return acc;
+            }, {} as Record<string, number>);
 
-        y += 8
-        doc.setFont("helvetica", "normal")
-        doc.setFontSize(11)
-        doc.text(`Total Expenses: INR ${totalExpenses.toLocaleString("en-IN")}`, 15, y)
+            const categoryData = Object.entries(categoryTotals).map(([category, amount], index) => ({
+                sr: index + 1,
+                category,
+                amount: formatCurrency(amount),
+                percentage: `${((amount / totalExpenses) * 100).toFixed(1)}%`
+            }));
 
-        // ---------------- FOOTER ----------------
-        doc.setFontSize(9)
-        doc.setTextColor(150)
-        doc.text("Confidential - Internal Use Only", 10, 290)
-        doc.text("© 2025 Samarth Caters", 160, 290)
+            pdf.addTable(categoryData, [
+                { header: "Sr.", dataKey: "sr", width: 15, align: "center" },
+                { header: "Category", dataKey: "category", width: 60 },
+                { header: "Amount", dataKey: "amount", width: 40, align: "right" },
+                { header: "Percentage", dataKey: "percentage", width: 25, align: "center" }
+            ]);
+        }
 
         // Save PDF
-        doc.save(`Expenses-Report-${new Date().toISOString().split("T")[0]}.pdf`)
+        pdf.save(`Expenses-Report-${new Date().toISOString().split('T')[0]}.pdf`);
     }
 
     return (
@@ -356,7 +355,7 @@ export default function ExpensesPage() {
                         <TableHeader>
                             <TableRow className="hover:bg-transparent">
                                 <TableHead className="w-[100px]">Date</TableHead>
-                                <TableHead>Title</TableHead>
+                                <TableHead>Description</TableHead>
                                 <TableHead className="hidden sm:table-cell">Category</TableHead>
                                 <TableHead className="text-right">Amount</TableHead>
                                 <TableHead className="hidden lg:table-cell">Note</TableHead>
@@ -379,11 +378,11 @@ export default function ExpensesPage() {
                                             setDrawerOpen(true)
                                         }}
                                     >
-                                        {formatDate(expense.date)}
+                                        {formatDate(expense.expense_date || expense.created_at)}
                                         <div className="md:hidden mt-1">
                                             <Badge
-                                                className={categoryColors[expense.category] || 'bg-gray-100 text-gray-800'}>
-                                                {expense.category.replace('_', ' ')}
+                                                className={categoryColors[expense.category || 'OTHER'] || 'bg-gray-100 text-gray-800'}>
+                                                {(expense.category || 'Other').replace('_', ' ')}
                                             </Badge>
                                         </div>
                                     </TableCell>
@@ -393,7 +392,7 @@ export default function ExpensesPage() {
                                             setDrawerOpen(true)
                                         }}
                                     >
-                                        {expense.title}
+                                        {expense.description}
                                     </TableCell>
                                     <TableCell
                                         className="hidden sm:table-cell"
@@ -403,8 +402,8 @@ export default function ExpensesPage() {
                                         }}
                                     >
                                         <Badge
-                                            className={categoryColors[expense.category] || 'bg-gray-100 text-gray-800'}>
-                                            {expense.category.replace('_', ' ')}
+                                            className={categoryColors[expense.category || 'OTHER'] || 'bg-gray-100 text-gray-800'}>
+                                            {(expense.category || 'Other').replace('_', ' ')}
                                         </Badge>
                                     </TableCell>
                                     <TableCell
@@ -490,16 +489,16 @@ export default function ExpensesPage() {
                             <div className="p-4">
                                 <div className="grid gap-4">
                                     <div>
-                                        <h3 className="font-semibold">{selectedExpense.title}</h3>
+                                        <h3 className="font-semibold">{selectedExpense.description}</h3>
                                         <Badge
-                                            className={categoryColors[selectedExpense.category] || 'bg-gray-100 text-gray-800'}>
-                                            {selectedExpense.category.replace('_', ' ')}
+                                            className={categoryColors[selectedExpense.category || 'OTHER'] || 'bg-gray-100 text-gray-800'}>
+                                            {(selectedExpense.category || 'Other').replace('_', ' ')}
                                         </Badge>
                                     </div>
                                     <div className="space-y-2">
                                         <div className="flex items-center text-sm text-muted-foreground">
                                             <Calendar className="h-4 w-4 mr-2"/>
-                                            {formatDate(selectedExpense.date)}
+                                            {formatDate(selectedExpense.expense_date || selectedExpense.created_at)}
                                         </div>
                                         <div className="flex items-center text-sm text-muted-foreground">
                                             <DollarSign className="h-4 w-4 mr-2"/>
@@ -531,11 +530,11 @@ export default function ExpensesPage() {
                         </DialogHeader>
                         <form onSubmit={handleSubmit} className="space-y-4">
                             <div className="space-y-2">
-                                <Label htmlFor="title">Title *</Label>
+                                <Label htmlFor="description">Description *</Label>
                                 <Input
-                                    id="title"
-                                    value={formData.title}
-                                    onChange={(e) => setFormData({...formData, title: e.target.value})}
+                                    id="description"
+                                    value={formData.description}
+                                    onChange={(e) => setFormData({...formData, description: e.target.value})}
                                     required
                                 />
                             </div>
@@ -573,22 +572,22 @@ export default function ExpensesPage() {
                             </div>
 
                             <div className="space-y-2">
-                                <Label htmlFor="date">Date *</Label>
+                                <Label htmlFor="expense_date">Date *</Label>
                                 <Input
-                                    id="date"
+                                    id="expense_date"
                                     type="date"
-                                    value={formData.date}
-                                    onChange={(e) => setFormData({...formData, date: e.target.value})}
+                                    value={formData.expense_date}
+                                    onChange={(e) => setFormData({...formData, expense_date: e.target.value})}
                                     required
                                 />
                             </div>
 
                             <div className="space-y-2">
-                                <Label htmlFor="description">Description</Label>
+                                <Label htmlFor="notes">Notes</Label>
                                 <Textarea
-                                    id="description"
-                                    value={formData.description}
-                                    onChange={(e) => setFormData({...formData, description: e.target.value})}
+                                    id="notes"
+                                    value={formData.notes}
+                                    onChange={(e) => setFormData({...formData, notes: e.target.value})}
                                     placeholder="Additional details about this expense..."
                                 />
                             </div>

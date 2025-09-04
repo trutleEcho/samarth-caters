@@ -11,6 +11,7 @@ import {CreateOrderRequest} from '@/data/request/create-order-request';
 import {useTranslations} from 'next-intl';
 import {Customer} from "@/data/entities/customer";
 import {Combobox} from "@/components/ui/combobox";
+import { api } from "@/lib/api";
 
 interface AddOrderDialogProps {
     open: boolean;
@@ -49,11 +50,7 @@ export default function AddOrderDialog({open, onOpenChange, onSuccess}: AddOrder
                 status: "Confirmed",
                 total_amount: 0
             };
-            const response = await fetch('/api/orders', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify(request)
-            });
+            const response = await api.post('/api/orders', request);
             if (response.ok) {
                 onOpenChange(false);
                 setFormData({
@@ -69,6 +66,8 @@ export default function AddOrderDialog({open, onOpenChange, onSuccess}: AddOrder
                     notes: ''
                 });
                 onSuccess();
+            } else if (response.status === 401) {
+                toast.error('Please login again');
             } else {
                 toast.error(`Failed to create order: ${response.statusText}`);
             }
@@ -83,7 +82,7 @@ export default function AddOrderDialog({open, onOpenChange, onSuccess}: AddOrder
     const fetchCustomers = async () => {
         try {
             setLoading(true)
-            const response = await fetch('/api/customers')
+            const response = await api.get('/api/customers')
             if (response.ok) {
                 const data = await response.json()
                 // Convert string dates to Date objects
@@ -97,6 +96,8 @@ export default function AddOrderDialog({open, onOpenChange, onSuccess}: AddOrder
                 if (data.length === 0) {
                     toast.info(t('noCustomers.message'))
                 }
+            } else if (response.status === 401) {
+                toast.error('Please login again');
             } else {
                 toast.error(t('fetchError'))
             }

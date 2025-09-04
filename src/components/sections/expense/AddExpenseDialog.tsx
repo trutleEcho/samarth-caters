@@ -7,6 +7,7 @@ import {Button} from '@/components/ui/button';
 import {Separator} from '@/components/ui/separator';
 import {toast} from 'sonner';
 import {useTranslations} from 'next-intl';
+import { api } from "@/lib/api";
 
 interface AddExpenseDialogProps {
     open: boolean;
@@ -19,10 +20,11 @@ export default function AddExpenseDialog({open, onOpenChange, onSuccess}: AddExp
     const commonT = useTranslations('common');
     
     const [formData, setFormData] = useState({
-        title: '',
+        description: '',
         amount: 0,
-        date: new Date().toISOString().split('T')[0],
-        note: '',
+        expense_date: new Date().toISOString().split('T')[0],
+        notes: '',
+        category: '',
         meta: ''
     });
     const [loading, setLoading] = useState(false);
@@ -43,30 +45,30 @@ export default function AddExpenseDialog({open, onOpenChange, onSuccess}: AddExp
             }
 
             const request = {
-                title: formData.title,
+                description: formData.description,
                 amount: Number(formData.amount),
-                date: new Date(formData.date),
-                note: formData.note,
+                expense_date: new Date(formData.expense_date),
+                notes: formData.notes,
+                category: formData.category,
                 meta: metaJson
             };
 
-            const response = await fetch('/api/expenses', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify(request)
-            });
+            const response = await api.post('/api/expenses', request);
 
             if (response.ok) {
                 onOpenChange(false);
                 setFormData({
-                    title: '',
+                    description: '',
                     amount: 0,
-                    date: new Date().toISOString().split('T')[0],
-                    note: '',
+                    expense_date: new Date().toISOString().split('T')[0],
+                    notes: '',
+                    category: '',
                     meta: ''
                 });
                 onSuccess();
                 toast.success('Expense added successfully');
+            } else if (response.status === 401) {
+                toast.error('Please login again');
             } else {
                 toast.error(`Failed to create expense: ${response.statusText}`);
             }
@@ -90,11 +92,11 @@ export default function AddExpenseDialog({open, onOpenChange, onSuccess}: AddExp
                 <Separator className="my-4"/>
                 <form onSubmit={handleSubmit} className="space-y-4">
                     <div className="space-y-2">
-                        <Label htmlFor="title">Title *</Label>
+                        <Label htmlFor="description">Description *</Label>
                         <Input
-                            id="title"
-                            value={formData.title}
-                            onChange={(e) => setFormData({...formData, title: e.target.value})}
+                            id="description"
+                            value={formData.description}
+                            onChange={(e) => setFormData({...formData, description: e.target.value})}
                             required
                         />
                     </div>
@@ -110,21 +112,21 @@ export default function AddExpenseDialog({open, onOpenChange, onSuccess}: AddExp
                         />
                     </div>
                     <div className="space-y-2">
-                        <Label htmlFor="date">Date *</Label>
+                        <Label htmlFor="expense_date">Date *</Label>
                         <Input
-                            id="date"
+                            id="expense_date"
                             type="date"
-                            value={formData.date}
-                            onChange={(e) => setFormData({...formData, date: e.target.value})}
+                            value={formData.expense_date}
+                            onChange={(e) => setFormData({...formData, expense_date: e.target.value})}
                             required
                         />
                     </div>
                     <div className="space-y-2">
-                        <Label htmlFor="note">Note</Label>
+                        <Label htmlFor="notes">Notes</Label>
                         <Textarea
-                            id="note"
-                            value={formData.note}
-                            onChange={(e) => setFormData({...formData, note: e.target.value})}
+                            id="notes"
+                            value={formData.notes}
+                            onChange={(e) => setFormData({...formData, notes: e.target.value})}
                             placeholder="Add any additional notes here"
                         />
                     </div>

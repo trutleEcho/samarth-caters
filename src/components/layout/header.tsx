@@ -28,6 +28,7 @@ import {LanguageToggle} from "@/components/custom/language-toggle";
 import {Separator} from "@/components/ui/separator";
 import { useTranslations } from 'next-intl';
 import pkg from "../../../package.json";
+import Image from "next/image";
 
 const navigation = [
     {name: 'dashboard', href: '/dashboard', icon: Home},
@@ -43,7 +44,7 @@ export default function Header() {
     const commonT = useTranslations('common');
 
     const handleLogout = async () => {
-        localStorage.removeItem('loginResponse')
+        localStorage.removeItem('authToken')
         router.push('/login')
     }
 
@@ -60,7 +61,7 @@ export default function Header() {
                         >
                             {/*<ChefHat className="h-8 w-8 text-orange-500"/>*/}
                         </motion.div>
-                        <span className="text-xl font-bold text-primary">{commonT('appName')}</span>
+                        <Image src="/sc_logo.png" alt="Samarth Caterers" width={100} height={100}/>
                     </Link>
 
                     {/* Desktop Navigation */}

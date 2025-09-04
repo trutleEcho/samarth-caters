@@ -4,25 +4,76 @@ import {motion} from 'framer-motion'
 import {ChefHat} from 'lucide-react'
 import {Button} from '@/components/ui/button'
 import {Card, CardContent, CardDescription, CardHeader, CardTitle} from '@/components/ui/card'
-import {handleSignInWithGoogle} from '@/utils/handleSignInWithGoogle'
+import {Input} from '@/components/ui/input'
+import {Label} from '@/components/ui/label'
 import {toast} from "sonner";
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 
 export default function LoginPage() {
     const [checkingAutoLogin, setCheckingAutoLogin] = useState(true)
+    const [isLogin, setIsLogin] = useState(true)
+    const [formData, setFormData] = useState({
+        username: '',
+        password: '',
+        email: ''
+    })
+    const [isLoading, setIsLoading] = useState(false)
     const router = useRouter()
 
     useEffect(() => {
-        // Auto-login if loginResponse exists
-        const loginResponse = localStorage.getItem('loginResponse')
-        if (loginResponse) {
-            // Optionally, validate the session here
+        // Auto-login if authToken exists
+        const authToken = localStorage.getItem('authToken')
+        if (authToken) {
             router.push('/dashboard')
         } else {
             setCheckingAutoLogin(false)
         }
     }, [router])
+
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault()
+        setIsLoading(true)
+
+        try {
+            const endpoint = isLogin ? '/api/auth/login' : '/api/auth/register'
+            
+            // Prepare data for API call
+            const apiData = {
+                username: formData.username,
+                password: formData.password,
+                ...(formData.email && formData.email.trim() !== '' && { email: formData.email })
+            }
+            
+            const response = await fetch(endpoint, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(apiData),
+            })
+
+            const data = await response.json()
+
+            if (data.success) {
+                localStorage.setItem('authToken', data.token)
+                toast.success(isLogin ? 'Login successful!' : 'Registration successful!')
+                router.push('/dashboard')
+            } else {
+                // Show more specific error messages
+                if (data.details && Array.isArray(data.details)) {
+                    const errorMessages = data.details.map((detail: any) => detail.message).join(', ')
+                    toast.error(`Validation failed: ${errorMessages}`)
+                } else {
+                    toast.error(data.error || 'Authentication failed')
+                }
+            }
+        } catch (error) {
+            toast.error('An error occurred. Please try again.')
+        } finally {
+            setIsLoading(false)
+        }
+    }
 
     if (checkingAutoLogin) {
         return (
@@ -55,38 +106,65 @@ export default function LoginPage() {
                         <CardDescription className="text-sm text-muted-foreground">Sign in to manage your catering business</CardDescription>
                     </CardHeader>
                     <CardContent>
-                        <div className="flex flex-col items-center gap-6">
-                            <Button
-                                type="button"
-                                variant="outline"
-                                className="rounded-full w-fit flex items-center justify-center gap-2 text-base font-medium py-3 border-2 border-gray-200 hover:border-orange-400 transition"
-                                onClick={async () => {
-                                    try {
-                                        await handleSignInWithGoogle()
-                                    } catch (err: any) {
-                                        toast.error(err.message || "Google login failed")
-                                    }
-                                }}
-                            >
-                                <svg className="h-5 w-5" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                    <g clipPath="url(#clip0_17_40)">
-                                        <path d="M47.5 24.5C47.5 22.6 47.3 20.8 47 19H24V29.1H37.4C36.7 32.2 34.7 34.7 31.8 36.4V42.1H39.3C44 38 47.5 31.9 47.5 24.5Z" fill="#4285F4"/>
-                                        <path d="M24 48C30.6 48 36.1 45.9 39.3 42.1L31.8 36.4C30.1 37.5 27.9 38.2 24 38.2C17.7 38.2 12.2 34.1 10.3 28.7H2.5V34.6C5.7 41.1 14.1 48 24 48Z" fill="#34A853"/>
-                                        <path d="M10.3 28.7C9.7 27.1 9.4 25.4 9.4 23.6C9.4 21.8 9.7 20.1 10.3 18.5V12.6H2.5C0.8 15.7 0 19.2 0 23.6C0 28 0.8 31.5 2.5 34.6L10.3 28.7Z" fill="#FBBC05"/>
-                                        <path d="M24 9.8C27.7 9.8 30.2 11.3 31.6 12.6L39.4 5.1C36.1 2.1 30.6 0 24 0C14.1 0 5.7 6.9 2.5 12.6L10.3 18.5C12.2 13.1 17.7 9.8 24 9.8Z" fill="#EA4335"/>
-                                    </g>
-                                    <defs>
-                                        <clipPath id="clip0_17_40">
-                                            <rect width="48" height="48" fill="white"/>
-                                        </clipPath>
-                                    </defs>
-                                </svg>
-                                Sign in with Google
-                            </Button>
-                            <div className="text-center text-xs text-muted-foreground/70 mt-2">
-                                Only Google sign-in is supported for now.<br />
-                                Contact admin for access.
+                        <form onSubmit={handleSubmit} className="space-y-4">
+                            <div className="space-y-2">
+                                <Label htmlFor="username">Username</Label>
+                                <Input
+                                    id="username"
+                                    type="text"
+                                    value={formData.username}
+                                    onChange={(e) => setFormData({...formData, username: e.target.value})}
+                                    required
+                                    disabled={isLoading}
+                                />
                             </div>
+                            
+                            <div className="space-y-2">
+                                <Label htmlFor="password">Password</Label>
+                                <Input
+                                    id="password"
+                                    type="password"
+                                    value={formData.password}
+                                    onChange={(e) => setFormData({...formData, password: e.target.value})}
+                                    required
+                                    disabled={isLoading}
+                                />
+                            </div>
+
+                            {!isLogin && (
+                                <div className="space-y-2">
+                                    <Label htmlFor="email">Email (Optional)</Label>
+                                    <Input
+                                        id="email"
+                                        type="email"
+                                        value={formData.email}
+                                        onChange={(e) => setFormData({...formData, email: e.target.value})}
+                                        disabled={isLoading}
+                                    />
+                                </div>
+                            )}
+
+                            <Button
+                                type="submit"
+                                className="w-full"
+                                disabled={isLoading}
+                            >
+                                {isLoading ? 'Please wait...' : (isLogin ? 'Sign In' : 'Sign Up')}
+                            </Button>
+                        </form>
+
+                        <div className="mt-4 text-center">
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setIsLogin(!isLogin)
+                                    setFormData({username: '', password: '', email: ''})
+                                }}
+                                className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+                                disabled={isLoading}
+                            >
+                                {isLogin ? "Don't have an account? Sign up" : "Already have an account? Sign in"}
+                            </button>
                         </div>
                     </CardContent>
                 </Card>

@@ -18,6 +18,7 @@ import {
     SelectTrigger,
     SelectValue
 } from "@/components/ui/select";
+import { api } from '@/lib/api';
 import {Badge} from "@/components/ui/badge";
 import {
     Card,
@@ -84,21 +85,19 @@ export default function PaymentDetails({payment, isEditing, onSaveAction}: Payme
                 amount: Number(formData.amount)
             };
 
-            const response = await fetch(`/api/payment`, {
-                method: 'PUT',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify(updatedPayment),
-            });
+            const response = await api.put('/api/payment', updatedPayment);
 
             if (!response.ok) {
+                if (response.status === 401) {
+                    toast.error('Session expired. Please login again.');
+                    return;
+                }
                 toast.error(t('errors.updateFailed'));
-                return
+                return;
             }
 
             toast.success(t('paymentUpdated'));
-            onSaveAction()
+            onSaveAction();
         } catch (error) {
             toast.error(t('errors.updateFailed'));
             console.error('Error updating payment:', error);
@@ -110,21 +109,19 @@ export default function PaymentDetails({payment, isEditing, onSaveAction}: Payme
     const handleDelete = async () => {
         setLoading(true);
         try {
-            const response = await fetch(`/api/payment`, {
-                method: 'DELETE',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify(payment),
-            });
+            const response = await api.delete('/api/payment', payment);
 
             if (!response.ok) {
+                if (response.status === 401) {
+                    toast.error('Session expired. Please login again.');
+                    return;
+                }
                 toast.error(t('errors.deleteFailed'));
-                return
+                return;
             }
 
             toast.success(t('paymentDeleted'));
-            onSaveAction()
+            onSaveAction();
         } catch (error) {
             toast.error(t('errors.deleteFailed'));
             console.error('Error deleting payment:', error);

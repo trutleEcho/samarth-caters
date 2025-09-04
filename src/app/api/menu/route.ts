@@ -1,133 +1,142 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from "@/utils/supabase/server";
+import { sql } from '@/lib/database';
+import { getCurrentUser } from '@/lib/auth';
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
-    const supabase = await createClient();
-
-    // 1. Fetch all menus
-    const { data: menus, error: menusError } = await supabase
-      .from('menus')
-      .select('*')
-      .order('created_at', { ascending: false });
-
-    if (menusError) {
-      return NextResponse.json({ error: menusError.message }, { status: 500 });
+    const user = await getCurrentUser(request);
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // 2. For each menu, fetch event, order, and customer
+    // Fetch all menus
+    const menus = await sql`
+      SELECT * FROM menus ORDER BY created_at DESC
+    `;
+
+    // For each menu, fetch event, order, and customer
     const expandedMenus = await Promise.all(
-      (menus || []).map(async (menu) => {
+      menus.map(async (menu) => {
         // Fetch event for this menu
-        const { data: event } = await supabase
-          .from('events')
-          .select('*')
-          .eq('id', menu.event_id)
-          .single();
+        const event = await sql`
+          SELECT * FROM events WHERE id = ${menu.event_id}
+        `;
 
         // Fetch order for this event
-        const { data: order } = await supabase
-          .from('orders')
-          .select('*')
-          .eq('id', event?.order_id)
-          .single();
+        const order = await sql`
+          SELECT * FROM orders WHERE id = ${event[0]?.order_id}
+        `;
 
         // Fetch customer for this order
-        const { data: customer } = await supabase
-          .from('customers')
-          .select('*')
-          .eq('id', order?.customer_id)
-          .single();
+        const customer = await sql`
+          SELECT * FROM customers WHERE id = ${order[0]?.customer_id}
+        `;
 
         return {
           menu,
-          event,
-          order,
-          customer,
+          event: event[0],
+          order: order[0],
+          customer: customer[0],
         };
       })
     );
 
     return NextResponse.json(expandedMenus);
   } catch (error: any) {
+    console.error('Error fetching menus:', error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
 
 export async function POST(req: NextRequest) {
   try {
+    const user = await getCurrentUser(req);
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     const body = await req.json();
-    const supabase = await createClient();
+    const { event_id, name, description, price, quantity, items } = body;
 
-    if (!body.event_id) {
-      return NextResponse.json({ error: 'event_id is required' }, { status: 400 });
-    }
+    // Map items to name if name is not provided (for backward compatibility)
+    const menuName = name || items || 'Menu Items';
+    const menuDescription = description || items || null;
+    const menuPrice = price || 0;
+    const menuQuantity = quantity || 1;
 
-    const { data: createdMenu, error: menuError } = await supabase
-      .from('menus')
-      .insert([body])
-      .select('*')
-      .single();
+    // Insert new menu item
+    const createdMenu = await sql`
+      INSERT INTO menus (id, event_id, name, description, price, quantity, created_at)
+      VALUES (gen_random_uuid(), ${event_id}, ${menuName}, ${menuDescription}, 
+              ${menuPrice}, ${menuQuantity}, NOW())
+      RETURNING *
+    `;
 
-    console.log('Created menu:', createdMenu);
-    console.log('Menu insert error:', menuError);
-
-    if (menuError || !createdMenu) {
-      console.error('Menu insert error:', menuError?.message);
-      return NextResponse.json({ error: menuError?.message }, { status: 500 });
-    }
-
-    return NextResponse.json({ success: true, menu: createdMenu });
+    return NextResponse.json({ success: true, menu: createdMenu[0] });
   } catch (error: any) {
-    console.error('Unhandled error:', error);
+    console.error('Error creating menu:', error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
 
 export async function PUT(req: NextRequest) {
   try {
-    const body = await req.json();
-    const supabase = await createClient();
-
-    const { data: updatedMenu, error: menuError } = await supabase
-        .from('menus')
-        .upsert(body)
-        .select('*')
-        .single(); // ✅ works if `id` is primary or unique key
-
-    if (menuError || !updatedMenu) {
-      console.error('Menu update error:', menuError?.message);
-      return NextResponse.json({ error: menuError?.message }, { status: 500 });
+    const user = await getCurrentUser(req);
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    return NextResponse.json({ success: true, menu: updatedMenu });
+    const body = await req.json();
+    const { id, name, description, price, quantity, items } = body;
+
+    if (!id) {
+      return NextResponse.json({ error: 'Menu ID is required' }, { status: 400 });
+    }
+
+    // Map items to name if name is not provided (for backward compatibility)
+    const menuName = name || items || 'Menu Items';
+    const menuDescription = description || items || null;
+    const menuPrice = price || 0;
+    const menuQuantity = quantity || 1;
+
+    // Update menu item
+    const updatedMenu = await sql`
+      UPDATE menus 
+      SET name = ${menuName}, description = ${menuDescription}, 
+          price = ${menuPrice}, quantity = ${menuQuantity}, updated_at = NOW()
+      WHERE id = ${id}
+      RETURNING *
+    `;
+
+    if (updatedMenu.length === 0) {
+      return NextResponse.json({ error: 'Menu not found' }, { status: 404 });
+    }
+
+    return NextResponse.json({ success: true, menu: updatedMenu[0] });
   } catch (error: any) {
     console.error('Error updating menu:', error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
 
-
 export async function DELETE(req: NextRequest) {
   try {
-    const body = await req.json();
-    const supabase = await createClient();
-    const menuId = body.id;
+    const user = await getCurrentUser(req);
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const url = new URL(req.url);
+    const menuId = url.searchParams.get('id');
 
     if (!menuId) {
       return NextResponse.json({ error: 'Menu ID is required' }, { status: 400 });
     }
 
-    // Delete menu
-    const { error: deleteError } = await supabase
-      .from('menus')
-      .delete()
-      .eq('id', menuId);
-
-    if (deleteError) {
-      console.error('Menu deletion error:', deleteError.message);
-      return NextResponse.json({ error: deleteError.message }, { status: 500 });
-    }
+    // Delete menu item
+    await sql`
+      DELETE FROM menus WHERE id = ${menuId}
+    `;
 
     return NextResponse.json({ success: true });
   } catch (error: any) {

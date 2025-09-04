@@ -1,56 +1,48 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from "@/utils/supabase/server";
+import { sql } from '@/lib/database';
+import { getCurrentUser } from '@/lib/auth';
 import {PaymentMethod} from "@/data/enums/payment-method";
 import {PaymentEntityType} from "@/data/enums/payment-entity-type";
 
 export async function GET(request: NextRequest) {
   try {
-    const supabase = await createClient();
+    const user = await getCurrentUser(request);
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     const url = new URL(request.url);
     const paymentId = url.searchParams.get('id');
     const entityId = url.searchParams.get('entity_id');
 
     if (paymentId) {
       // Fetch specific payment
-      const { data: payment, error: paymentError } = await supabase
-        .from('payments')
-        .select('*')
-        .eq('id', paymentId)
-        .single();
+      const payment = await sql`
+        SELECT * FROM payments WHERE id = ${paymentId}
+      `;
 
-      if (paymentError) {
-        return NextResponse.json({ error: paymentError.message }, { status: 500 });
+      if (payment.length === 0) {
+        return NextResponse.json({ error: 'Payment not found' }, { status: 404 });
       }
 
-      return NextResponse.json(payment);
+      return NextResponse.json(payment[0]);
     }
 
     if (entityId) {
       // Fetch payments for specific entity
-      const { data: payments, error: paymentsError } = await supabase
-        .from('payments')
-        .select('*')
-        .eq('entity_id', entityId)
-        .order('created_at', { ascending: false });
-
-      if (paymentsError) {
-        return NextResponse.json({ error: paymentsError.message }, { status: 500 });
-      }
+      const payments = await sql`
+        SELECT * FROM payments WHERE entity_id = ${entityId} ORDER BY created_at DESC
+      `;
 
       return NextResponse.json(payments || []);
     }
 
     // Fetch all payments
-    const { data: payments, error: paymentsError } = await supabase
-      .from('payments')
-      .select('*')
-      .order('created_at', { ascending: false });
+    const payments = await sql`
+      SELECT * FROM payments ORDER BY created_at DESC
+    `;
 
-    if (paymentsError) {
-      return NextResponse.json({ error: paymentsError.message }, { status: 500 });
-    }
-
-    return NextResponse.json(payments || []);
+    return NextResponse.json(payments);
   } catch (error: any) {
     console.error('Error fetching payments:', error);
     return NextResponse.json({ error: error.message }, { status: 500 });
@@ -59,56 +51,49 @@ export async function GET(request: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
-    const body = await req.json();
-    const supabase = await createClient();
-
-    // Validate required fields
-    if (!body.entity_id || !body.amount) {
-      return NextResponse.json({ error: 'entity_id and amount are required' }, { status: 400 });
+    const user = await getCurrentUser(req);
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Build insert payload with defaults
-    const finalRequest = {
-      ...body,
-      entity_type: body.entity_type || PaymentEntityType.Event,
-      payment_method: body.payment_method || PaymentMethod.Cash,
-      payment_id: body.payment_id || `${body.payment_method || 'PAYMENT'}-${Date.now()}`,
-      amount: Number(body.amount),
-      created_at: new Date().toISOString(),
-    };
+    const body = await req.json();
+    const { entity_id, entity_type, amount, payment_method, payment_date, notes } = body;
 
     // Insert new payment
-    const { data: createdPayment, error: paymentError } = await supabase
-      .from('payments')
-      .insert([finalRequest])
-      .select('*')
-      .single();
+    const createdPayment = await sql`
+      INSERT INTO payments (id, entity_id, entity_type, amount, payment_method, payment_date, notes, created_at)
+      VALUES (gen_random_uuid(), ${entity_id}, ${entity_type}, ${amount}, ${payment_method}, 
+              ${payment_date ? new Date(payment_date).toISOString() : null}, 
+              ${notes || null}, NOW())
+      RETURNING *
+    `;
 
-    if (paymentError || !createdPayment) {
-      console.error('Payment creation error:', paymentError?.message);
-      return NextResponse.json({ error: paymentError?.message }, { status: 500 });
-    }
-
-    // Update order balance if this is a payment for an order/event
-    if (body.entity_type === PaymentEntityType.Event) {
-      // Fetch the order associated with this payment
-      const { data: order, error: orderError } = await supabase
-        .from('orders')
-        .select('balance')
-        .eq('id', body.entity_id)
-        .single();
-
-      if (!orderError && order) {
-        const newBalance = (order.balance || 0) + Number(body.amount);
+    // Update order balance if this is an order payment
+    if (entity_type === PaymentEntityType.Event) {
+      // Get current order details
+      const order = await sql`
+        SELECT * FROM orders WHERE id = ${entity_id}
+      `;
+      
+      if (order.length > 0) {
+        // Calculate total payments for this order
+        const totalPayments = await sql`
+          SELECT COALESCE(SUM(amount), 0) as total FROM payments WHERE entity_id = ${entity_id}
+        `;
         
-        await supabase
-          .from('orders')
-          .update({ balance: newBalance })
-          .eq('id', body.entity_id);
+        const totalPaid = totalPayments[0]?.total || 0;
+        const newBalance = Math.max(0, order[0].total_amount - totalPaid);
+        
+        // Update order balance
+        await sql`
+          UPDATE orders 
+          SET balance = ${newBalance}, updated_at = NOW()
+          WHERE id = ${entity_id}
+        `;
       }
     }
 
-    return NextResponse.json({ success: true, payment: createdPayment });
+    return NextResponse.json({ success: true, payment: createdPayment[0] });
   } catch (error: any) {
     console.error('Error creating payment:', error);
     return NextResponse.json({ error: error.message }, { status: 500 });
@@ -117,65 +102,59 @@ export async function POST(req: NextRequest) {
 
 export async function PUT(req: NextRequest) {
   try {
-    const body = await req.json();
-    const supabase = await createClient();
-    const paymentId = body.id
+    const user = await getCurrentUser(req);
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
 
-    if (!paymentId) {
+    const body = await req.json();
+    const { id, entity_id, entity_type, amount, payment_method, payment_date, notes } = body;
+
+    if (!id) {
       return NextResponse.json({ error: 'Payment ID is required' }, { status: 400 });
     }
 
-    // Get original payment to calculate balance difference
-    const { data: originalPayment, error: originalError } = await supabase
-      .from('payments')
-      .select('*')
-      .eq('id', paymentId)
-      .single();
-
-    if (originalError) {
-      console.error('Original payment fetch error:', originalError.message);
-      return NextResponse.json({ error: originalError.message }, { status: 500 });
-    }
-
     // Update payment
-    const updateData = {
-      ...body,
-      amount: Number(body.amount)
-    };
+    const updatedPayment = await sql`
+      UPDATE payments 
+      SET entity_id = ${entity_id}, entity_type = ${entity_type}, amount = ${amount}, 
+          payment_method = ${payment_method}, 
+          payment_date = ${payment_date ? new Date(payment_date).toISOString() : null}, 
+          notes = ${notes || null}, updated_at = NOW()
+      WHERE id = ${id}
+      RETURNING *
+    `;
 
-    const { data: updatedPayment, error: updateError } = await supabase
-      .from('payments')
-      .update(updateData)
-      .eq('id', paymentId)
-      .select('*')
-      .single();
-
-    if (updateError) {
-      console.error('Payment update error:', updateError.message);
-      return NextResponse.json({ error: updateError.message }, { status: 500 });
+    if (updatedPayment.length === 0) {
+      return NextResponse.json({ error: 'Payment not found' }, { status: 404 });
     }
 
-    // Update order balance if this is a payment for an order/event and amount changed
-    if (originalPayment.entity_type === PaymentEntityType.Event && originalPayment.amount !== Number(body.amount)) {
-      const amountDifference = Number(body.amount) - originalPayment.amount;
+    // Update order balance if this is an order payment
+    if (entity_type === PaymentEntityType.Event) {
+      // Get current order details
+      const order = await sql`
+        SELECT * FROM orders WHERE id = ${entity_id}
+      `;
       
-      const { data: order, error: orderError } = await supabase
-        .from('orders')
-        .select('balance')
-        .eq('id', originalPayment.entity_id)
-        .single();
-
-      if (!orderError && order) {
-        const newBalance = (order.balance || 0) + amountDifference;
+      if (order.length > 0) {
+        // Calculate total payments for this order
+        const totalPayments = await sql`
+          SELECT COALESCE(SUM(amount), 0) as total FROM payments WHERE entity_id = ${entity_id}
+        `;
         
-        await supabase
-          .from('orders')
-          .update({ balance: newBalance })
-          .eq('id', originalPayment.entity_id);
+        const totalPaid = totalPayments[0]?.total || 0;
+        const newBalance = Math.max(0, order[0].total_amount - totalPaid);
+        
+        // Update order balance
+        await sql`
+          UPDATE orders 
+          SET balance = ${newBalance}, updated_at = NOW()
+          WHERE id = ${entity_id}
+        `;
       }
     }
 
-    return NextResponse.json({ success: true, payment: updatedPayment });
+    return NextResponse.json({ success: true, payment: updatedPayment[0] });
   } catch (error: any) {
     console.error('Error updating payment:', error);
     return NextResponse.json({ error: error.message }, { status: 500 });
@@ -184,52 +163,57 @@ export async function PUT(req: NextRequest) {
 
 export async function DELETE(req: NextRequest) {
   try {
-    const body = await req.json();
-    const supabase = await createClient();
-    const paymentId = body.id
+    const user = await getCurrentUser(req);
+    if (!user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const url = new URL(req.url);
+    const paymentId = url.searchParams.get('id');
 
     if (!paymentId) {
       return NextResponse.json({ error: 'Payment ID is required' }, { status: 400 });
     }
 
-    // Get payment details before deletion for balance update
-    const { data: payment, error: paymentFetchError } = await supabase
-      .from('payments')
-      .select('*')
-      .eq('id', paymentId)
-      .single();
+    // Get payment details before deletion to update order balance
+    const payment = await sql`
+      SELECT * FROM payments WHERE id = ${paymentId}
+    `;
 
-    if (paymentFetchError) {
-      console.error('Payment fetch error:', paymentFetchError.message);
-      return NextResponse.json({ error: paymentFetchError.message }, { status: 500 });
+    if (payment.length === 0) {
+      return NextResponse.json({ error: 'Payment not found' }, { status: 404 });
     }
+
+    const entityId = payment[0].entity_id;
+    const entityType = payment[0].entity_type;
 
     // Delete payment
-    const { error: deleteError } = await supabase
-      .from('payments')
-      .delete()
-      .eq('id', paymentId);
+    await sql`
+      DELETE FROM payments WHERE id = ${paymentId}
+    `;
 
-    if (deleteError) {
-      console.error('Payment deletion error:', deleteError.message);
-      return NextResponse.json({ error: deleteError.message }, { status: 500 });
-    }
-
-    // Update order balance if this was a payment for an order/event
-    if (payment.entity_type === PaymentEntityType.Event) {
-      const { data: order, error: orderError } = await supabase
-        .from('orders')
-        .select('balance')
-        .eq('id', payment.entity_id)
-        .single();
-
-      if (!orderError && order) {
-        const newBalance = (order.balance || 0) - payment.amount;
+    // Update order balance if this was an order payment
+    if (entityType === PaymentEntityType.Event) {
+      // Get current order details
+      const order = await sql`
+        SELECT * FROM orders WHERE id = ${entityId}
+      `;
+      
+      if (order.length > 0) {
+        // Calculate total payments for this order
+        const totalPayments = await sql`
+          SELECT COALESCE(SUM(amount), 0) as total FROM payments WHERE entity_id = ${entityId}
+        `;
         
-        await supabase
-          .from('orders')
-          .update({ balance: newBalance })
-          .eq('id', payment.entity_id);
+        const totalPaid = totalPayments[0]?.total || 0;
+        const newBalance = Math.max(0, order[0].total_amount - totalPaid);
+        
+        // Update order balance
+        await sql`
+          UPDATE orders 
+          SET balance = ${newBalance}, updated_at = NOW()
+          WHERE id = ${entityId}
+        `;
       }
     }
 

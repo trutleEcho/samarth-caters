@@ -7,6 +7,7 @@ import {Textarea} from "@/components/ui/textarea";
 import {Menu} from "@/data/entities/menu";
 import {toast} from "sonner";
 import {useTranslations} from "next-intl";
+import { api } from "@/lib/api";
 
 interface MenuManagerProps {
     eventId: string;
@@ -27,15 +28,13 @@ export default function MenuManager({eventId, menu, onSave, isEditing}: MenuMana
                     items: items || "",
                 };
 
-                const response = await fetch(`/api/menu`, {
-                    method: 'PUT',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify(updatedMenu),
-                });
+                const response = await api.put('/api/menu', updatedMenu);
 
                 if (!response.ok) {
+                    if (response.status === 401) {
+                        toast.error('Authentication required. Please log in again.');
+                        return;
+                    }
                     toast.error('Error updating menu');
                     return
                 }
@@ -45,15 +44,13 @@ export default function MenuManager({eventId, menu, onSave, isEditing}: MenuMana
                     items: items || "",
                     created_at: new Date().toISOString(),
                 };
-                const response = await fetch(`/api/menu`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify(newMenu),
-                });
+                const response = await api.post('/api/menu', newMenu);
 
                 if (!response.ok) {
+                    if (response.status === 401) {
+                        toast.error('Authentication required. Please log in again.');
+                        return;
+                    }
                     toast.error('Error creating menu');
                     return
                 }
@@ -68,7 +65,8 @@ export default function MenuManager({eventId, menu, onSave, isEditing}: MenuMana
 
     useEffect(() => {
         if (menu) {
-            setItems(menu.items);
+            // Try items first (legacy), then description, then name
+            setItems(menu.items || menu.description || menu.name || "");
         }
     }, [menu]);
 
@@ -78,7 +76,7 @@ export default function MenuManager({eventId, menu, onSave, isEditing}: MenuMana
             <Textarea
                 id="menu-items"
                 className="mt-1 font-mono dark:text-white"
-                placeholder={menu?.items ? menu.items : isEditing ? "Enter menu items" : "No menu items"}
+                placeholder={menu?.items || menu?.description || menu?.name ? (menu.items || menu.description || menu.name) : isEditing ? "Enter menu items" : "No menu items"}
                 value={items}
                 onChange={e => setItems(e.target.value)}
                 rows={6}

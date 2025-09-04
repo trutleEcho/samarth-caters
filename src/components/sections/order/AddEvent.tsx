@@ -10,6 +10,7 @@ import { Separator } from '@/components/ui/separator';
 import { toast } from "sonner";
 import { CalendarIcon, IndianRupee } from "lucide-react";
 import { useTranslations } from "next-intl";
+import { api } from "@/lib/api";
 import DateTimePicker from "../../../../datetime-picker";
 import { EventStatus } from "@/data/enums/event-status";
 import {
@@ -61,11 +62,7 @@ export default function AddEvent({ onAdd, orderId }: AddEventProps) {
         status: form.status
       };
 
-      const response = await fetch('/api/event', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(request)
-      });
+      const response = await api.post('/api/event', request);
 
       if (response.ok) {
         const result = await response.json();
@@ -84,6 +81,8 @@ export default function AddEvent({ onAdd, orderId }: AddEventProps) {
 
         // Call onAdd with the created event
         onAdd(result.event);
+      } else if (response.status === 401) {
+        toast.error('Please login again');
       } else {
         const errorData = await response.json();
         toast.error(`Failed to create event: ${errorData.error || response.statusText}`);
