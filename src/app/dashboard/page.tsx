@@ -165,7 +165,7 @@ export default function DashboardPage() {
         const profitMargin = stats.totalRevenue > 0 ? ((netProfit / stats.totalRevenue) * 100).toFixed(1) : 0;
         
         pdf.addText(`Net Profit: ${formatCurrency(netProfit)}`, { bold: true, color: netProfit >= 0 ? [40, 167, 69] : [220, 53, 69] });
-        pdf.addText(`Profit Margin: ${profitMargin}%`, { bold: true, color: parseFloat(profitMargin) >= 0 ? [40, 167, 69] : [220, 53, 69] });
+        pdf.addText(`Profit Margin: ${profitMargin}%`, { bold: true, color: parseFloat(profitMargin.toString()) >= 0 ? [40, 167, 69] : [220, 53, 69] });
         pdf.addText(`Average Order Value: ${formatCurrency(stats.totalOrders > 0 ? stats.totalRevenue / stats.totalOrders : 0)}`, { bold: true });
 
         // Save PDF

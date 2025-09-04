@@ -18,7 +18,7 @@ export async function runMigrations() {
     
     for (const statement of statements) {
       if (statement.trim()) {
-        await sql(statement);
+        await sql.query(statement);
       }
     }
     
