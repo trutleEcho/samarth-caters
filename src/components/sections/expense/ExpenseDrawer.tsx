@@ -21,7 +21,7 @@ import {Input} from '@/components/ui/input';
 import {Textarea} from '@/components/ui/textarea';
 import {Select, SelectContent, SelectItem, SelectTrigger, SelectValue} from '@/components/ui/select';
 import {Edit2, Save, Trash2} from 'lucide-react';
-import ConversionUtil from '@/utils/ConversionUtil';
+import {conversionUtil} from "@/utils/ConversionUtil";
 
 interface Expense {
     id: string;
@@ -189,7 +189,7 @@ export default function ExpenseDrawer({open, onOpenChange, expense, onSaveAction
                                             }
                                         />
                                     ) : (
-                                        <p className="text-lg">{ConversionUtil.toRupees(expense.amount)}</p>
+                                        <p className="text-lg">{conversionUtil.toRupees(expense.amount)}</p>
                                     )}
                                 </div>
 
