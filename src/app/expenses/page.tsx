@@ -18,7 +18,7 @@ import {Edit, Trash2} from 'lucide-react'
 import {formatDate} from '@/lib/format'
 import {toast} from "sonner";
 import StatCard from "@/components/ui/stat-card";
-import { PDFGenerator, formatDateTime } from "@/lib/pdf-utils";
+import {PDFGenerator, formatDateTime, formatCurrency} from "@/lib/pdf-utils";
 import { api } from "@/lib/api";
 import {conversionUtil} from "@/utils/ConversionUtil";
 
@@ -53,12 +53,23 @@ export default function ExpensesPage() {
     const [dateRange, setDateRange] = useState({from: '', to: ''})
     const [drawerOpen, setDrawerOpen] = useState(false)
     const [selectedExpense, setSelectedExpense] = useState<Expense | null>(null)
+    const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
+    const [editingExpense, setEditingExpense] = useState<Expense | null>(null)
+    const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false)
+    const [expenseToDelete, setExpenseToDelete] = useState<Expense | null>(null)
     const [formData, setFormData] = useState({
         description: '',
         amount: '',
         category: '',
         notes: '',
         expense_date: new Date().toISOString().split('T')[0]
+    })
+    const [editFormData, setEditFormData] = useState({
+        description: '',
+        amount: '',
+        category: '',
+        notes: '',
+        expense_date: ''
     })
 
     useEffect(() => {
@@ -145,6 +156,76 @@ export default function ExpensesPage() {
         }
     }
 
+    const handleEditSubmit = async (e: React.FormEvent) => {
+        e.preventDefault()
+
+        if (!editingExpense) return
+
+        try {
+            const response = await api.put(`/api/expenses?id=${editingExpense.id}`, editFormData)
+
+            if (response.ok) {
+                toast.success('Expense updated successfully')
+                setIsEditDialogOpen(false)
+                setEditingExpense(null)
+                setEditFormData({
+                    description: '',
+                    amount: '',
+                    category: '',
+                    notes: '',
+                    expense_date: ''
+                })
+                fetchExpenses()
+            } else if (response.status === 401) {
+                toast.error('Please login again')
+            } else if (response.status === 500) {
+                toast.error(`Failed to update expense: ${response.statusText}`)
+            }
+        } catch (error) {
+            toast.error('Failed to update expense')
+            console.error('Error updating expense:', error)
+        }
+    }
+
+    const handleDeleteExpense = async () => {
+        if (!expenseToDelete) return
+
+        try {
+            const response = await api.delete(`/api/expenses?id=${expenseToDelete.id}`)
+
+            if (response.ok) {
+                toast.success('Expense deleted successfully')
+                setDeleteConfirmOpen(false)
+                setExpenseToDelete(null)
+                fetchExpenses()
+            } else if (response.status === 401) {
+                toast.error('Please login again')
+            } else if (response.status === 500) {
+                toast.error(`Failed to delete expense: ${response.statusText}`)
+            }
+        } catch (error) {
+            toast.error('Failed to delete expense')
+            console.error('Error deleting expense:', error)
+        }
+    }
+
+    const openEditDialog = (expense: Expense) => {
+        setEditingExpense(expense)
+        setEditFormData({
+            description: expense.description,
+            amount: expense.amount.toString(),
+            category: expense.category || '',
+            notes: expense.notes || '',
+            expense_date: expense.expense_date ? expense.expense_date.split('T')[0] : expense.created_at.split('T')[0]
+        })
+        setIsEditDialogOpen(true)
+    }
+
+    const openDeleteConfirm = (expense: Expense) => {
+        setExpenseToDelete(expense)
+        setDeleteConfirmOpen(true)
+    }
+
     const totalExpenses = expenses.reduce((sum, expense) => sum + Number(expense.amount), 0)
     const thisMonth = expenses.filter(expense =>
         new Date(expense.expense_date || expense.created_at).getMonth() === new Date().getMonth() &&
@@ -157,7 +238,7 @@ export default function ExpensesPage() {
         lastMonthDate.setMonth(lastMonthDate.getMonth() - 1)
         return date.getMonth() === lastMonthDate.getMonth() &&
             date.getFullYear() === lastMonthDate.getFullYear()
-    }).reduce((sum, expense) => sum + expense.amount, 0)
+    }).reduce((sum, expense) => sum + Number(expense.amount), 0)
 
     const monthlyChange = lastMonth > 0 ? ((thisMonth - lastMonth) / lastMonth) * 100 : 0
 
@@ -192,9 +273,9 @@ export default function ExpensesPage() {
         // Add summary section
         pdf.addSectionHeader("Expense Summary");
         pdf.addSummaryBox([
-            { label: "Total Expenses", value: conversionUtil.toRupees(totalExpenses), color: [220, 53, 69] },
-            { label: "This Month", value: conversionUtil.toRupees(thisMonth), color: [255, 193, 7] },
-            { label: "Last Month", value: conversionUtil.toRupees(lastMonth), color: [108, 117, 125] },
+            { label: "Total Expenses", value: formatCurrency(totalExpenses), color: [220, 53, 69] },
+            { label: "This Month", value: formatCurrency(thisMonth), color: [255, 193, 7] },
+            { label: "Last Month", value: formatCurrency(lastMonth), color: [108, 117, 125] },
             { label: "Monthly Change", value: `${monthlyChange.toFixed(1)}%`, color: monthlyChange >= 0 ? [220, 53, 69] : [40, 167, 69] }
         ]);
 
@@ -205,7 +286,7 @@ export default function ExpensesPage() {
                 sr: index + 1,
                 description: expense.description,
                 category: expense.category || "Other",
-                amount: conversionUtil.toRupees(expense.amount),
+                amount: formatCurrency(Number(expense.amount)),
                 date: formatDateTime(expense.expense_date || expense.created_at),
                 notes: expense.notes || "—"
             }));
@@ -226,15 +307,15 @@ export default function ExpensesPage() {
             pdf.addSectionHeader("Category Breakdown");
             const categoryTotals = expenses.reduce((acc, expense) => {
                 const category = expense.category || "Other";
-                acc[category] = (acc[category] || 0) + expense.amount;
+                acc[category] = (acc[category] || 0) + Number(expense.amount);
                 return acc;
             }, {} as Record<string, number>);
 
             const categoryData = Object.entries(categoryTotals).map(([category, amount], index) => ({
                 sr: index + 1,
                 category,
-                amount: conversionUtil.toRupees(amount),
-                percentage: `${((amount / totalExpenses) * 100).toFixed(1)}%`
+                amount: formatCurrency(Number(amount)),
+                percentage: `${((Number(amount) / totalExpenses) * 100).toFixed(1)}%`
             }));
 
             pdf.addTable(categoryData, [
@@ -297,28 +378,6 @@ export default function ExpensesPage() {
                         />
                     </div>
                     <div className="flex flex-col md:flex-row gap-4">
-                        <div className="flex gap-2">
-                            <div className="relative">
-                                <Calendar
-                                    className="h-4 w-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"/>
-                                <Input
-                                    type="date"
-                                    value={dateRange.from}
-                                    onChange={(e) => setDateRange({...dateRange, from: e.target.value})}
-                                    className="pl-10 w-[150px]"
-                                />
-                            </div>
-                            <div className="relative">
-                                <Calendar
-                                    className="h-4 w-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"/>
-                                <Input
-                                    type="date"
-                                    value={dateRange.to}
-                                    onChange={(e) => setDateRange({...dateRange, to: e.target.value})}
-                                    className="pl-10 w-[150px]"
-                                />
-                            </div>
-                        </div>
                         <Select value={categoryFilter} onValueChange={setCategoryFilter}>
                             <SelectTrigger className="w-full sm:w-[180px]">
                                 <Filter className="h-4 w-4 mr-2"/>
@@ -428,8 +487,9 @@ export default function ExpensesPage() {
                                         <Button
                                             variant="ghost"
                                             size="sm"
-                                            onClick={() => {
-                                                // TODO: Implement edit functionality
+                                            onClick={(e) => {
+                                                e.stopPropagation()
+                                                openEditDialog(expense)
                                             }}
                                         >
                                             <Edit className="h-4 w-4"/>
@@ -437,8 +497,9 @@ export default function ExpensesPage() {
                                         <Button
                                             variant="ghost"
                                             size="sm"
-                                            onClick={() => {
-                                                // TODO: Implement delete functionality
+                                            onClick={(e) => {
+                                                e.stopPropagation()
+                                                openDeleteConfirm(expense)
                                             }}
                                         >
                                             <Trash2 className="h-4 w-4"/>
@@ -602,6 +663,126 @@ export default function ExpensesPage() {
                                 </Button>
                             </div>
                         </form>
+                    </DialogContent>
+                </Dialog>
+
+                {/* Edit Expense Dialog */}
+                <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+                    <DialogContent className="sm:max-w-[425px]">
+                        <DialogHeader>
+                            <DialogTitle>Edit Expense</DialogTitle>
+                            <DialogDescription>
+                                Update the expense information.
+                            </DialogDescription>
+                        </DialogHeader>
+                        <form onSubmit={handleEditSubmit} className="space-y-4">
+                            <div className="space-y-2">
+                                <Label htmlFor="edit-description">Description *</Label>
+                                <Input
+                                    id="edit-description"
+                                    value={editFormData.description}
+                                    onChange={(e) => setEditFormData({...editFormData, description: e.target.value})}
+                                    required
+                                />
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="space-y-2">
+                                    <Label htmlFor="edit-amount">Amount *</Label>
+                                    <Input
+                                        id="edit-amount"
+                                        type="number"
+                                        step="0.01"
+                                        value={editFormData.amount}
+                                        onChange={(e) => setEditFormData({...editFormData, amount: e.target.value})}
+                                        required
+                                    />
+                                </div>
+                                <div className="space-y-2">
+                                    <Label htmlFor="edit-category">Category *</Label>
+                                    <Select value={editFormData.category}
+                                            onValueChange={(value) => setEditFormData({...editFormData, category: value})}>
+                                        <SelectTrigger>
+                                            <SelectValue placeholder="Select category"/>
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="INGREDIENTS">Ingredients</SelectItem>
+                                            <SelectItem value="EQUIPMENT">Equipment</SelectItem>
+                                            <SelectItem value="TRANSPORTATION">Transportation</SelectItem>
+                                            <SelectItem value="STAFF">Staff</SelectItem>
+                                            <SelectItem value="MARKETING">Marketing</SelectItem>
+                                            <SelectItem value="UTILITIES">Utilities</SelectItem>
+                                            <SelectItem value="OTHER">Other</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+                            </div>
+
+                            <div className="space-y-2">
+                                <Label htmlFor="edit-expense_date">Date *</Label>
+                                <Input
+                                    id="edit-expense_date"
+                                    type="date"
+                                    value={editFormData.expense_date}
+                                    onChange={(e) => setEditFormData({...editFormData, expense_date: e.target.value})}
+                                    required
+                                />
+                            </div>
+
+                            <div className="space-y-2">
+                                <Label htmlFor="edit-notes">Notes</Label>
+                                <Textarea
+                                    id="edit-notes"
+                                    value={editFormData.notes}
+                                    onChange={(e) => setEditFormData({...editFormData, notes: e.target.value})}
+                                    placeholder="Additional details about this expense..."
+                                />
+                            </div>
+
+                            <div className="flex space-x-2 pt-4">
+                                <Button type="button" variant="outline" onClick={() => setIsEditDialogOpen(false)}
+                                        className="flex-1">
+                                    Cancel
+                                </Button>
+                                <Button type="submit" className="flex-1 bg-orange-500 hover:bg-orange-600">
+                                    Update Expense
+                                </Button>
+                            </div>
+                        </form>
+                    </DialogContent>
+                </Dialog>
+
+                {/* Delete Confirmation Dialog */}
+                <Dialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
+                    <DialogContent className="sm:max-w-[425px]">
+                        <DialogHeader>
+                            <DialogTitle>Delete Expense</DialogTitle>
+                            <DialogDescription>
+                                Are you sure you want to delete this expense? This action cannot be undone.
+                            </DialogDescription>
+                        </DialogHeader>
+                        {expenseToDelete && (
+                            <div className="py-4">
+                                <div className="bg-foreground/10 p-4 rounded-lg">
+                                    <h4 className="font-medium">{expenseToDelete.description}</h4>
+                                    <div className="text-sm text-muted-foreground mt-2">
+                                        <p>Amount: ₹{expenseToDelete.amount.toLocaleString()}</p>
+                                        <p>Category: {expenseToDelete.category || 'Other'}</p>
+                                        <p>Date: {formatDate(expenseToDelete.expense_date || expenseToDelete.created_at)}</p>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+                        <div className="flex space-x-2 pt-4">
+                            <Button type="button" variant="outline" onClick={() => setDeleteConfirmOpen(false)}
+                                    className="flex-1">
+                                Cancel
+                            </Button>
+                            <Button type="button" onClick={handleDeleteExpense}
+                                    className="flex-1 bg-red-500 hover:bg-red-600">
+                                Delete Expense
+                            </Button>
+                        </div>
                     </DialogContent>
                 </Dialog>
             </div>

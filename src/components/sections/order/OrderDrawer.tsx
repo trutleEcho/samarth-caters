@@ -169,12 +169,12 @@ export default function OrderDrawer({open, onOpenChange, order, onSaveAction}: {
                                     <span className="flex flex-col items-end">
                                         <span className="text-xs text-muted-foreground">
                                             {t('total')}: <span className="text-lg font-semibold text-foreground">
-                                                {conversionUtil.toRupees(order.order.total_amount || 0)}
+                                                {conversionUtil.toRupees(Number(order.order.total_amount) || 0)}
                                             </span>
                                         </span>
                                         <span className="text-xs text-muted-foreground">
                                             {t('balance')}: <span className="text-lg font-semibold text-foreground">
-                                                {conversionUtil.toRupees(order.order.balance || 0)}
+                                                {conversionUtil.toRupees(Number(order.order.total_amount) -order.payments.reduce((sum,order)=> sum + Number(order.amount),0) || 0)}
                                             </span>
                                         </span>
                                     </span>
