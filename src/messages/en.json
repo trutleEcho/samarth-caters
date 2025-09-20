@@ -238,7 +238,6 @@
     "eventNumber": "Event {number}",
     "noEvents": "No events added yet",
     "addEvent": "Add Event",
-    "hideAddEvent": "Hide Add Event",
     "eventUpdated": "Event updated successfully",
     "saving": "Saving...",
     "save": "Save",

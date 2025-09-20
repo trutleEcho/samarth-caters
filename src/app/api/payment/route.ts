@@ -69,7 +69,7 @@ export async function POST(req: NextRequest) {
     `;
 
     // Update order balance if this is an order payment
-    if (entity_type === PaymentEntityType.Event) {
+    if (entity_type === PaymentEntityType.Order) {
       // Get current order details
       const order = await sql`
         SELECT * FROM orders WHERE id = ${entity_id}
@@ -78,7 +78,7 @@ export async function POST(req: NextRequest) {
       if (order.length > 0) {
         // Calculate total payments for this order
         const totalPayments = await sql`
-          SELECT COALESCE(SUM(amount), 0) as total FROM payments WHERE entity_id = ${entity_id}
+          SELECT COALESCE(SUM(amount), 0) as total FROM payments WHERE entity_id = ${entity_id} AND entity_type = 'Order'
         `;
         
         const totalPaid = totalPayments[0]?.total || 0;
@@ -130,7 +130,7 @@ export async function PUT(req: NextRequest) {
     }
 
     // Update order balance if this is an order payment
-    if (entity_type === PaymentEntityType.Event) {
+    if (entity_type === PaymentEntityType.Order) {
       // Get current order details
       const order = await sql`
         SELECT * FROM orders WHERE id = ${entity_id}
@@ -139,7 +139,7 @@ export async function PUT(req: NextRequest) {
       if (order.length > 0) {
         // Calculate total payments for this order
         const totalPayments = await sql`
-          SELECT COALESCE(SUM(amount), 0) as total FROM payments WHERE entity_id = ${entity_id}
+          SELECT COALESCE(SUM(amount), 0) as total FROM payments WHERE entity_id = ${entity_id} AND entity_type = 'Order'
         `;
         
         const totalPaid = totalPayments[0]?.total || 0;
@@ -193,7 +193,7 @@ export async function DELETE(req: NextRequest) {
     `;
 
     // Update order balance if this was an order payment
-    if (entityType === PaymentEntityType.Event) {
+    if (entityType === PaymentEntityType.Order) {
       // Get current order details
       const order = await sql`
         SELECT * FROM orders WHERE id = ${entityId}
@@ -202,7 +202,7 @@ export async function DELETE(req: NextRequest) {
       if (order.length > 0) {
         // Calculate total payments for this order
         const totalPayments = await sql`
-          SELECT COALESCE(SUM(amount), 0) as total FROM payments WHERE entity_id = ${entityId}
+          SELECT COALESCE(SUM(amount), 0) as total FROM payments WHERE entity_id = ${entityId} AND entity_type = 'Order'
         `;
         
         const totalPaid = totalPayments[0]?.total || 0;
