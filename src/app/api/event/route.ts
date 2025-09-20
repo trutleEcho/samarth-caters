@@ -103,27 +103,46 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Order not found' }, { status: 404 });
     }
 
-    const totalAmount = (order[0].total_amount || 0) + (body.amount || 0);
-
-    // Update order total amount
-    await sql`
-      UPDATE orders 
-      SET total_amount = ${totalAmount}, updated_at = NOW()
-      WHERE id = ${body.order_id}
-    `;
-
-    // Insert new event
+    // Insert new event (amount will be calculated from menus)
     const createdEvent = await sql`
       INSERT INTO events (id, order_id, name, date, venue, guest_count, status, notes, amount, created_at)
       VALUES (gen_random_uuid(), ${body.order_id}, ${body.name || 'New Event'}, 
               ${body.date ? new Date(body.date).toISOString() : null}, 
               ${body.venue || null}, ${body.guest_count || null}, 
               ${body.status || EventStatus.Received}, ${body.notes || null}, 
-              ${body.amount || 0}, NOW())
+              0, NOW())
       RETURNING *
     `;
 
-    return NextResponse.json({ success: true, event: createdEvent[0] });
+    // Calculate total amount from menus for this event
+    const menus = await sql`
+      SELECT * FROM menus WHERE event_id = ${createdEvent[0].id}
+    `;
+
+    const eventTotalAmount = menus.reduce((sum, menu) => sum + (Number(menu.price) * Number(menu.quantity)), 0);
+
+    // Update event amount
+    await sql`
+      UPDATE events 
+      SET amount = ${eventTotalAmount}, updated_at = NOW()
+      WHERE id = ${createdEvent[0].id}
+    `;
+
+    // Calculate new order total amount
+    const allEvents = await sql`
+      SELECT * FROM events WHERE order_id = ${body.order_id}
+    `;
+
+    const orderTotalAmount = allEvents.reduce((sum, event) => sum + Number(event.amount), 0);
+
+    // Update order total amount
+    await sql`
+      UPDATE orders 
+      SET total_amount = ${orderTotalAmount}, updated_at = NOW()
+      WHERE id = ${body.order_id}
+    `;
+
+    return NextResponse.json({ success: true, event: { ...createdEvent[0], amount: eventTotalAmount } });
   } catch (error: any) {
     console.error('Error creating event:', error);
     return NextResponse.json({ error: error.message }, { status: 500 });
@@ -161,9 +180,7 @@ export async function PUT(req: NextRequest) {
       return NextResponse.json({ error: 'Order not found' }, { status: 404 });
     }
 
-    const updatedTotalAmount = (Number(order[0].total_amount) - Number(event[0].amount) + Number(body.amount)) || 0;
-
-    // Update event
+    // Update event (excluding amount - will be calculated from menus)
     const updatedEvent = await sql`
       UPDATE events 
       SET name = ${body.name || event[0].name}, 
@@ -172,20 +189,40 @@ export async function PUT(req: NextRequest) {
           guest_count = ${body.guest_count || event[0].guest_count}, 
           status = ${body.status || event[0].status}, 
           notes = ${body.notes || event[0].notes}, 
-          amount = ${body.amount || event[0].amount}, 
           updated_at = NOW()
       WHERE id = ${eventId}
       RETURNING *
     `;
 
+    // Calculate total amount from menus for this event
+    const menus = await sql`
+      SELECT * FROM menus WHERE event_id = ${eventId}
+    `;
+
+    const eventTotalAmount = menus.reduce((sum, menu) => sum + (Number(menu.price) * Number(menu.quantity)), 0);
+
+    // Update event amount
+    await sql`
+      UPDATE events 
+      SET amount = ${eventTotalAmount}, updated_at = NOW()
+      WHERE id = ${eventId}
+    `;
+
+    // Calculate new order total amount
+    const allEvents = await sql`
+      SELECT * FROM events WHERE order_id = ${body.order_id}
+    `;
+
+    const orderTotalAmount = allEvents.reduce((sum, event) => sum + Number(event.amount), 0);
+
     // Update order total amount
     await sql`
       UPDATE orders 
-      SET total_amount = ${updatedTotalAmount}, updated_at = NOW()
+      SET total_amount = ${orderTotalAmount}, updated_at = NOW()
       WHERE id = ${body.order_id}
     `;
 
-    return NextResponse.json({ success: true, event: updatedEvent[0] });
+    return NextResponse.json({ success: true, event: { ...updatedEvent[0], amount: eventTotalAmount } });
   } catch (error: any) {
     console.error('Error updating event:', error);
     return NextResponse.json({ error: error.message }, { status: 500 });
@@ -223,18 +260,23 @@ export async function DELETE(req: NextRequest) {
       return NextResponse.json({ error: 'Order not found' }, { status: 404 });
     }
 
-    const updatedTotalAmount = (Number(order[0].total_amount) - Number(event[0].amount)) || 0;
+    // Delete event (cascade will handle related records)
+    await sql`
+      DELETE FROM events WHERE id = ${eventId}
+    `;
+
+    // Calculate new order total amount from remaining events
+    const remainingEvents = await sql`
+      SELECT * FROM events WHERE order_id = ${event[0].order_id}
+    `;
+
+    const orderTotalAmount = remainingEvents.reduce((sum, event) => sum + Number(event.amount), 0);
 
     // Update order total amount
     await sql`
       UPDATE orders 
-      SET total_amount = ${updatedTotalAmount}, updated_at = NOW()
+      SET total_amount = ${orderTotalAmount}, updated_at = NOW()
       WHERE id = ${event[0].order_id}
-    `;
-
-    // Delete event (cascade will handle related records)
-    await sql`
-      DELETE FROM events WHERE id = ${eventId}
     `;
 
     return NextResponse.json({ success: true });

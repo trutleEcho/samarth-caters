@@ -2,15 +2,14 @@
 
 import {useState, useEffect} from 'react'
 import {motion} from 'framer-motion'
-import {Plus, Search, Filter, Calendar, Loader2} from 'lucide-react'
+import {Plus, Search, Filter, Calendar, Loader2, Edit} from 'lucide-react'
 import Header from '@/components/layout/header'
 import PageHeader from '@/components/ui/page-header'
 import {Button} from '@/components/ui/button'
 import {Input} from '@/components/ui/input'
 import {Select, SelectContent, SelectItem, SelectTrigger, SelectValue} from '@/components/ui/select'
 import {toast} from "sonner";
-import OrderDrawer from '@/components/sections/order/OrderDrawer'
-import AddOrderDialog from '@/components/sections/order/AddOrderDialog'
+import UnifiedOrderForm from '@/components/sections/order/UnifiedOrderForm'
 import {Badge} from '@/components/ui/badge'
 import {
     Table,
@@ -24,17 +23,18 @@ import {useTranslations} from 'next-intl';
 import {ExpandedOrder} from "@/data/dto/expanded-order";
 import {ErrorBoundary} from "@/components/error-boundary";
 import { api } from "@/lib/api";
+import { useRouter } from 'next/navigation';
 
 export default function OrdersPage() {
     const t = useTranslations('orders');
+    const router = useRouter();
     const [orders, setOrders] = useState<ExpandedOrder[]>([])
     const [filteredOrders, setFilteredOrders] = useState<ExpandedOrder[]>([])
     const [loading, setLoading] = useState(true)
     const [isDialogOpen, setIsDialogOpen] = useState(false)
+    const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
     const [searchTerm, setSearchTerm] = useState('')
     const [statusFilter, setStatusFilter] = useState('all')
-    const [drawerOpen, setDrawerOpen] = useState(false)
-    const [selectedOrder, setSelectedOrder] = useState<ExpandedOrder | null>(null)
 
     useEffect(() => {
         fetchOrders()
@@ -80,16 +80,8 @@ export default function OrdersPage() {
         }
     }
 
-    const handleOrderCardClick = (order: ExpandedOrder) => {
-        setSelectedOrder(order)
-        setDrawerOpen(true)
-    }
-
-    const handleDrawerSave = () => {
-        if (!selectedOrder) return
-        setDrawerOpen(false)
-        setSelectedOrder(null)
-        fetchOrders()
+    const handleOrderClick = (order: ExpandedOrder) => {
+        router.push(`/orders/${order.order.id}`)
     }
 
     if (loading) {
@@ -169,7 +161,7 @@ export default function OrdersPage() {
                                 return (
                                     <TableRow
                                         key={order.order.id}
-                                        onClick={() => handleOrderCardClick(order)}
+                                        onClick={() => handleOrderClick(order)}
                                         className="cursor-pointer hover:bg-accent/50 transition-colors"
                                     >
                                         <TableCell className="font-medium">
@@ -230,25 +222,13 @@ export default function OrdersPage() {
                 </div>
 
                 <ErrorBoundary>
-                    <AddOrderDialog
+                    <UnifiedOrderForm
                         open={isDialogOpen}
                         onOpenChange={setIsDialogOpen}
                         onSuccess={fetchOrders}
                     />
                 </ErrorBoundary>
 
-                <ErrorBoundary>
-                    {selectedOrder && (
-                        <OrderDrawer
-                            open={drawerOpen}
-                            onOpenChange={(open) => {
-                                setDrawerOpen(open)
-                                if (!open) setSelectedOrder(null)
-                            }}
-                            order={selectedOrder}
-                            onSaveAction={handleDrawerSave}
-                        />)}
-                </ErrorBoundary>
             </div>
         </div>
     )

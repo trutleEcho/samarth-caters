@@ -55,10 +55,10 @@ export default function DashboardPage() {
         activeOrders: orders.filter(order =>
             order.events.find(event => event.status === EventStatus.Processing)
         ).length,
-        totalRevenue: orders.reduce((sum, order) => sum + order.order.total_amount, 0),
+        totalRevenue: orders.reduce((sum, order) => sum + Number(order.order.total_amount), 0),
         monthlyExpenses: expenses
             .filter(expense => new Date(expense.expense_date ?? new Date()).getMonth() === new Date().getMonth())
-            .reduce((sum, expense) => sum + expense.amount, 0)
+            .reduce((sum, expense) => sum + Number(expense.amount), 0)
     }
 
     const upcomingEvents = orders.map(order =>
@@ -216,7 +216,7 @@ export default function DashboardPage() {
                 </div>
 
                 {/* Main Content */}
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mt-8">
+                <div className="grid grid-cols-1 gap-8 mt-8">
                     {/* Upcoming Orders */}
                     <motion.div
                         initial={{opacity: 0, x: -20}}
@@ -289,56 +289,56 @@ export default function DashboardPage() {
                         </Card>
                     </motion.div>
 
-                    {/* Recent Expenses */}
-                    <motion.div
-                        initial={{opacity: 0, x: 20}}
-                        animate={{opacity: 1, x: 0}}
-                        transition={{duration: 0.5, delay: 0.3}}
-                    >
-                        <Card>
-                            <CardHeader>
-                                <CardTitle className="flex items-center space-x-2">
-                                    <DollarSign className="h-5 w-5 text-green-500"/>
-                                    <span>{t('recentExpenses.title')}</span>
-                                </CardTitle>
-                                <CardDescription>{t('recentExpenses.description')}</CardDescription>
-                            </CardHeader>
-                            <CardContent className="space-y-4">
-                                {recentExpenses.length > 0 ? (
-                                    recentExpenses.map((expense, index) => (
-                                        <motion.div
-                                            key={expense.id}
-                                            initial={{opacity: 0, y: 20}}
-                                            animate={{opacity: 1, y: 0}}
-                                            transition={{duration: 0.3, delay: index * 0.1}}
-                                        >
-                                            <Link key={expense?.id} href="/expenses"
-                                                  className="flex items-center justify-between  p-4 rounded-lg hover:bg-foreground/10 transition-colors border border-gray-200/10"
-                                            >
-                                                <div>
-                                                    <h4 className="font-semibold ">{expense.id}</h4>
-                                                    <p className="text-sm capitalize text-muted-foreground">{expense?.category?.toLowerCase()}</p>
-                                                    <span className="text-xs text-muted-foreground">
-                                                  {expense?.expense_date ? formatDate(expense?.expense_date) : "--"}
-                                                </span>
-                                                </div>
-                                                <div className="text-right">
-                                                    <p className="text-sm font-medium text-red-600">
-                                                        -{formatCurrency(expense.amount)}
-                                                    </p>
-                                                </div>
-                                            </Link>
-                                        </motion.div>
-                                    ))
-                                ) : (
-                                    <div className="text-center py-8 text-gray-500">
-                                        <DollarSign className="h-12 w-12 mx-auto mb-4 opacity-50"/>
-                                        <p>{t('recentExpenses.noExpenses')}</p>
-                                    </div>
-                                )}
-                            </CardContent>
-                        </Card>
-                    </motion.div>
+                    {/*/!* Recent Expenses *!/*/}
+                    {/*<motion.div*/}
+                    {/*    initial={{opacity: 0, x: 20}}*/}
+                    {/*    animate={{opacity: 1, x: 0}}*/}
+                    {/*    transition={{duration: 0.5, delay: 0.3}}*/}
+                    {/*>*/}
+                    {/*    <Card>*/}
+                    {/*        <CardHeader>*/}
+                    {/*            <CardTitle className="flex items-center space-x-2">*/}
+                    {/*                <DollarSign className="h-5 w-5 text-green-500"/>*/}
+                    {/*                <span>{t('recentExpenses.title')}</span>*/}
+                    {/*            </CardTitle>*/}
+                    {/*            <CardDescription>{t('recentExpenses.description')}</CardDescription>*/}
+                    {/*        </CardHeader>*/}
+                    {/*        <CardContent className="space-y-4">*/}
+                    {/*            {recentExpenses.length > 0 ? (*/}
+                    {/*                recentExpenses.map((expense, index) => (*/}
+                    {/*                    <motion.div*/}
+                    {/*                        key={expense.id}*/}
+                    {/*                        initial={{opacity: 0, y: 20}}*/}
+                    {/*                        animate={{opacity: 1, y: 0}}*/}
+                    {/*                        transition={{duration: 0.3, delay: index * 0.1}}*/}
+                    {/*                    >*/}
+                    {/*                        <Link key={expense?.id} href="/expenses"*/}
+                    {/*                              className="flex items-center justify-between  p-4 rounded-lg hover:bg-foreground/10 transition-colors border border-gray-200/10"*/}
+                    {/*                        >*/}
+                    {/*                            <div>*/}
+                    {/*                                <h4 className="font-semibold ">{expense.id}</h4>*/}
+                    {/*                                <p className="text-sm capitalize text-muted-foreground">{expense?.category?.toLowerCase()}</p>*/}
+                    {/*                                <span className="text-xs text-muted-foreground">*/}
+                    {/*                              {expense?.expense_date ? formatDate(expense?.expense_date) : "--"}*/}
+                    {/*                            </span>*/}
+                    {/*                            </div>*/}
+                    {/*                            <div className="text-right">*/}
+                    {/*                                <p className="text-sm font-medium text-red-600">*/}
+                    {/*                                    -{formatCurrency(expense.amount)}*/}
+                    {/*                                </p>*/}
+                    {/*                            </div>*/}
+                    {/*                        </Link>*/}
+                    {/*                    </motion.div>*/}
+                    {/*                ))*/}
+                    {/*            ) : (*/}
+                    {/*                <div className="text-center py-8 text-gray-500">*/}
+                    {/*                    <DollarSign className="h-12 w-12 mx-auto mb-4 opacity-50"/>*/}
+                    {/*                    <p>{t('recentExpenses.noExpenses')}</p>*/}
+                    {/*                </div>*/}
+                    {/*            )}*/}
+                    {/*        </CardContent>*/}
+                    {/*    </Card>*/}
+                    {/*</motion.div>*/}
                 </div>
             </div>
         </div>

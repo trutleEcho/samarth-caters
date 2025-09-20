@@ -9,6 +9,6 @@ export interface Event {
     guest_count?: number
     status: EventStatus
     notes?: string
-    amount?: number
+    amount: number // Calculated from menus
     created_at: Date
 }

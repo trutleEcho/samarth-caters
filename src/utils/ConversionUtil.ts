@@ -36,4 +36,4 @@ class ConversionUtil {
     }
 }
 
-export default ConversionUtil;
+export const conversionUtil = ConversionUtil;

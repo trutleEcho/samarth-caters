@@ -1,4 +1,5 @@
 export enum PaymentEntityType {
-    Event ='Event',
+    Order = 'Order',
+    Event = 'Event',
     Employee = 'Employee'
 }
