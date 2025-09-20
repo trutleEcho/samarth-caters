@@ -8,7 +8,7 @@ import PaymentTabs from './PaymentTabs';
 import {useTranslations} from 'next-intl';
 import {ExpandedOrder} from "@/data/dto/expanded-order";
 import {ErrorBoundary} from "@/components/error-boundary";
-import ConversionUtil from "@/utils/ConversionUtil";
+import {conversionUtil} from "@/utils/ConversionUtil";
 import {Tabs, TabsContent, TabsList, TabsTrigger} from '@/components/ui/tabs';
 import { PDFGenerator, formatCurrency, formatDateTime } from "@/lib/pdf-utils";
 import {Button} from "@/components/ui/button";
@@ -169,12 +169,12 @@ export default function OrderDrawer({open, onOpenChange, order, onSaveAction}: {
                                     <span className="flex flex-col items-end">
                                         <span className="text-xs text-muted-foreground">
                                             {t('total')}: <span className="text-lg font-semibold text-foreground">
-                                                {ConversionUtil.toRupees(order.order.total_amount || 0)}
+                                                {conversionUtil.toRupees(order.order.total_amount || 0)}
                                             </span>
                                         </span>
                                         <span className="text-xs text-muted-foreground">
                                             {t('balance')}: <span className="text-lg font-semibold text-foreground">
-                                                {ConversionUtil.toRupees(order.order.balance || 0)}
+                                                {conversionUtil.toRupees(order.order.balance || 0)}
                                             </span>
                                         </span>
                                     </span>

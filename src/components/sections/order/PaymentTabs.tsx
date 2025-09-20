@@ -10,7 +10,7 @@ import PaymentDetails from "@/components/sections/order/PaymentDetails";
 import AddPayment from "@/components/sections/order/AddPayment";
 import {ErrorBoundary} from "@/components/error-boundary";
 import {Separator} from "@/components/ui/separator";
-import ConversionUtil from "@/utils/ConversionUtil";
+import {conversionUtil} from "@/utils/ConversionUtil";
 
 export default function PaymentTabs({order, onSaveAction}: {
     order: ExpandedOrder,
@@ -63,7 +63,7 @@ export default function PaymentTabs({order, onSaveAction}: {
                         <TabsList className="mb-4 flex flex-wrap gap-2 print:hidden">
                             {order.payments.map((payment, idx) => (
                                 <TabsTrigger key={payment.id || idx} value={payment.id || String(idx)}>
-                                    {payment.payment_method} - {ConversionUtil.toRupees(payment.amount)}
+                                    {payment.payment_method} - {conversionUtil.toRupees(payment.amount)}
                                 </TabsTrigger>
                             ))}
                         </TabsList>

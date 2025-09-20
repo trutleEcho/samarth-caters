@@ -5,7 +5,6 @@ import {motion} from 'framer-motion'
 import {Plus, Search, Filter, Calendar, DollarSign, TrendingUp, TrendingDown, Download} from 'lucide-react'
 import Header from '@/components/layout/header'
 import PageHeader from '@/components/ui/page-header'
-import {Card, CardContent, CardDescription, CardHeader, CardTitle} from '@/components/ui/card'
 import {Button} from '@/components/ui/button'
 import {Input} from '@/components/ui/input'
 import {Badge} from '@/components/ui/badge'
@@ -19,8 +18,9 @@ import {Edit, Trash2} from 'lucide-react'
 import {formatDate} from '@/lib/format'
 import {toast} from "sonner";
 import StatCard from "@/components/ui/stat-card";
-import { PDFGenerator, formatCurrency, formatDateTime } from "@/lib/pdf-utils";
+import { PDFGenerator, formatDateTime } from "@/lib/pdf-utils";
 import { api } from "@/lib/api";
+import {conversionUtil} from "@/utils/ConversionUtil";
 
 interface Expense {
     id: string
@@ -145,11 +145,11 @@ export default function ExpensesPage() {
         }
     }
 
-    const totalExpenses = expenses.reduce((sum, expense) => sum + expense.amount, 0)
+    const totalExpenses = expenses.reduce((sum, expense) => sum + Number(expense.amount), 0)
     const thisMonth = expenses.filter(expense =>
         new Date(expense.expense_date || expense.created_at).getMonth() === new Date().getMonth() &&
         new Date(expense.expense_date || expense.created_at).getFullYear() === new Date().getFullYear()
-    ).reduce((sum, expense) => sum + expense.amount, 0)
+    ).reduce((sum, expense) => sum + Number(expense.amount), 0)
 
     const lastMonth = expenses.filter(expense => {
         const date = new Date(expense.expense_date || expense.created_at)
@@ -192,9 +192,9 @@ export default function ExpensesPage() {
         // Add summary section
         pdf.addSectionHeader("Expense Summary");
         pdf.addSummaryBox([
-            { label: "Total Expenses", value: formatCurrency(totalExpenses), color: [220, 53, 69] },
-            { label: "This Month", value: formatCurrency(thisMonth), color: [255, 193, 7] },
-            { label: "Last Month", value: formatCurrency(lastMonth), color: [108, 117, 125] },
+            { label: "Total Expenses", value: conversionUtil.toRupees(totalExpenses), color: [220, 53, 69] },
+            { label: "This Month", value: conversionUtil.toRupees(thisMonth), color: [255, 193, 7] },
+            { label: "Last Month", value: conversionUtil.toRupees(lastMonth), color: [108, 117, 125] },
             { label: "Monthly Change", value: `${monthlyChange.toFixed(1)}%`, color: monthlyChange >= 0 ? [220, 53, 69] : [40, 167, 69] }
         ]);
 
@@ -205,7 +205,7 @@ export default function ExpensesPage() {
                 sr: index + 1,
                 description: expense.description,
                 category: expense.category || "Other",
-                amount: formatCurrency(expense.amount),
+                amount: conversionUtil.toRupees(expense.amount),
                 date: formatDateTime(expense.expense_date || expense.created_at),
                 notes: expense.notes || "—"
             }));
@@ -233,7 +233,7 @@ export default function ExpensesPage() {
             const categoryData = Object.entries(categoryTotals).map(([category, amount], index) => ({
                 sr: index + 1,
                 category,
-                amount: formatCurrency(amount),
+                amount: conversionUtil.toRupees(amount),
                 percentage: `${((amount / totalExpenses) * 100).toFixed(1)}%`
             }));
 
@@ -273,7 +273,7 @@ export default function ExpensesPage() {
                         animate={{opacity: 1, y: 0}}
                         transition={{duration: 0.3}}
                     >
-                        <StatCard title={"Total Expenses"} value={formatCurrency(totalExpenses)} icon={DollarSign}/>
+                        <StatCard title={"Total Expenses"} value={conversionUtil.toRupees(totalExpenses)} icon={DollarSign}/>
                     </motion.div>
 
                     <motion.div
@@ -281,7 +281,7 @@ export default function ExpensesPage() {
                         animate={{opacity: 1, y: 0}}
                         transition={{duration: 0.3, delay: 0.1}}
                     >
-                        <StatCard title={"This Month"} value={formatCurrency(thisMonth)} icon={Calendar}/>
+                        <StatCard title={"This Month"} value={conversionUtil.toRupees(thisMonth)} icon={Calendar}/>
                     </motion.div>
                 </div>
 

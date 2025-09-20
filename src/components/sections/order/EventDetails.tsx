@@ -29,9 +29,9 @@ import {
 import {ErrorBoundary} from "@/components/error-boundary";
 import {Menu} from "@/data/entities/menu";
 import MenuManager from "@/components/sections/order/MenuManager";
-import ConversionUtil from "@/utils/ConversionUtil";
 import { PDFGenerator, formatCurrency, formatDateTime } from "@/lib/pdf-utils";
 import { api } from "@/lib/api";
+import {conversionUtil} from "@/utils/ConversionUtil";
 
 interface EventDetailsProps {
     event: Event;
@@ -308,7 +308,7 @@ export default function EventDetails({event, isEditing, onSaveAction, menu}: Eve
                             </div>
                         ) : (
                             <p className="text-foreground font-medium flex items-center">
-                                {ConversionUtil.toRupees(formData.amount)}
+                                {conversionUtil.toRupees(formData.amount)}
                             </p>
                         )}
                     </div>

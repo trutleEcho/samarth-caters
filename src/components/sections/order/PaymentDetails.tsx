@@ -24,10 +24,8 @@ import {
     Card,
     CardContent,
     CardFooter,
-    CardHeader,
-    CardTitle
 } from "@/components/ui/card";
-import ConversionUtil from "@/utils/ConversionUtil";
+import {conversionUtil} from "@/utils/ConversionUtil";
 
 interface PaymentDetailsProps {
     payment: Payment;
@@ -152,7 +150,7 @@ export default function PaymentDetails({payment, isEditing, onSaveAction}: Payme
                             </div>
                         ) : (
                             <p className="text-foreground font-medium flex items-center">
-                                {ConversionUtil.toRupees(formData.amount)}
+                                {conversionUtil.toRupees(formData.amount)}
                             </p>
                         )}
                     </div>
