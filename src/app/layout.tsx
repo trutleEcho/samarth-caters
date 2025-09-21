@@ -6,8 +6,8 @@ import RootProvider from "@/providers/RootProvider";
 const inter = Inter({subsets: ['latin']});
 
 export const metadata: Metadata = {
-    title: 'Samarth Caters',
-    description: 'Internal management system for Samarth Caters',
+    title: 'Samarth Caterers',
+    description: 'Internal management system for Samarth Caterers',
 };
 
 export default function RootLayout({
