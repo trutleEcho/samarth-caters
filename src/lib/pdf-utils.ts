@@ -34,7 +34,7 @@ export class PDFGenerator {
       subtitle,
       showDate = true,
       logoPath = '/sc_logo.png', // Use the better logo
-      companyName = 'Samarth Caters'
+      companyName = 'Samarth Caterers'
     } = options;
 
     // 1️⃣ Background first
@@ -258,8 +258,8 @@ export class PDFGenerator {
     this.doc.setFont('helvetica', 'normal');
     this.doc.setFontSize(9);
     this.doc.setTextColor(120, 120, 120);
-    this.doc.text('Thank you for choosing Samarth Caters!', 10, pageHeight - 15);
-    this.doc.text('© 2025 Samarth Caters - All Rights Reserved', 10, pageHeight - 10);
+    this.doc.text('Thank you for choosing Samarth Caterers!', 10, pageHeight - 15);
+    this.doc.text('© 2025 Samarth Caterers - All Rights Reserved', 10, pageHeight - 10);
     
     // Page number
     this.doc.text(`Page ${pageNumber}`, 180, pageHeight - 10);

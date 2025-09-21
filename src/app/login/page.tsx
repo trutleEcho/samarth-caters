@@ -102,7 +102,7 @@ export default function LoginPage() {
                         >
                             <ChefHat className="h-8 w-8 text-white" />
                         </motion.div>
-                        <CardTitle className="text-3xl font-extrabold tracking-tight text-foreground">Samarth Caters</CardTitle>
+                        <CardTitle className="text-3xl font-extrabold tracking-tight text-foreground">Samarth Caterers</CardTitle>
                         <CardDescription className="text-sm text-muted-foreground">Sign in to manage your catering business</CardDescription>
                     </CardHeader>
                     <CardContent>
