@@ -600,6 +600,11 @@ export default function OrderDetailPage() {
 
     const totalPaid = order.payments.reduce((sum, payment) => sum + Number(payment.amount), 0);
     const balance = Number(order.order.balance) || (Number(order.order.total_amount) - totalPaid);
+    const sortedEvents = [...order.events].sort((a, b) => {
+        const aTime = a.date ? new Date(a.date).getTime() : Number.POSITIVE_INFINITY;
+        const bTime = b.date ? new Date(b.date).getTime() : Number.POSITIVE_INFINITY;
+        return aTime - bTime;
+    });
 
     return (
         <div className="min-h-screen bg-background">
@@ -802,7 +807,7 @@ export default function OrderDetailPage() {
                                     </div>
                                 ) : (
                                     <div className="space-y-4">
-                                        {order.events.map((event, index) => (
+                                        {sortedEvents.map((event, index) => (
                                             <Card key={event.id}>
                                                 <CardContent className="p-6">
                                                     <div className="flex items-center justify-between mb-4">
@@ -1221,7 +1226,7 @@ export default function OrderDetailPage() {
                                         <SelectValue placeholder="Choose an event for this menu"/>
                                     </SelectTrigger>
                                     <SelectContent>
-                                        {order?.events.map((event) => (
+                                        {sortedEvents.map((event) => (
                                             <SelectItem key={event.id} value={event.id}>
                                                 {event.name || 'Untitled Event'} - {event.venue || 'No venue'}
                                             </SelectItem>
