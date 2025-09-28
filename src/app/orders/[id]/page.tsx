@@ -442,21 +442,19 @@ export default function OrderDetailPage() {
         }
 
         // Add payments section
-        pdf.addSectionHeader("Payments");
+        pdf.addSectionHeader("Advance Payments");
         if (order.payments.length > 0) {
             const paymentsData = order.payments.map((payment, index) => ({
                 sr: index + 1,
-                paymentId: payment.payment_id,
                 method: payment.payment_method,
                 amount: formatCurrency(payment.amount),
                 date: formatDateTime(new Date(payment.created_at))
             }));
 
             pdf.addTable(paymentsData, [
-                {header: "Sr.", dataKey: "sr", width: 15, align: "center"},
-                {header: "Payment ID", dataKey: "paymentId", width: 50},
-                {header: "Method", dataKey: "method", width: 30},
-                {header: "Amount", dataKey: "amount", width: 30, align: "right"},
+                {header: "Sr.", dataKey: "sr", width: 20, align: "center"},
+                {header: "Method", dataKey: "method", width: 30, align: 'center'},
+                {header: "Amount", dataKey: "amount", width: 30, align: "center"},
                 {header: "Date", dataKey: "date", width: 65}
             ]);
         } else {
@@ -969,13 +967,13 @@ export default function OrderDetailPage() {
                                                             <h3 className="text-lg font-semibold">{menu.name || 'Untitled Menu'}</h3>
                                                         </div>
                                                         <div className="flex gap-2">
-                                                            <Button
-                                                                variant="outline"
-                                                                size="sm"
-                                                                onClick={() => generateMenuPDF(menu)}
-                                                            >
-                                                                <Download className="h-4 w-4"/>
-                                                            </Button>
+                                                            {/*<Button*/}
+                                                            {/*    variant="outline"*/}
+                                                            {/*    size="sm"*/}
+                                                            {/*    onClick={() => generateMenuPDF(menu)}*/}
+                                                            {/*>*/}
+                                                            {/*    <Download className="h-4 w-4"/>*/}
+                                                            {/*</Button>*/}
                                                             <Button
                                                                 variant="outline"
                                                                 size="sm"
@@ -1004,8 +1002,9 @@ export default function OrderDetailPage() {
                                                     {menu.description && (
                                                         <div className="mb-4">
                                                             <Label
-                                                                className="text-sm text-muted-foreground">Description</Label>
-                                                            <p className="font-medium">{menu.description}</p>
+                                                                className="text-sm text-muted-foreground">Menu Items</Label>
+                                                            <span className="font-medium">
+                                                            <pre>{menu.description}</pre></span>
                                                         </div>
                                                     )}
 
@@ -1405,18 +1404,6 @@ export default function OrderDetailPage() {
                             </DialogDescription>
                         </DialogHeader>
                         <div className="space-y-4">
-                            <div className="space-y-2">
-                                <Label htmlFor="editMenuItems">Menu Items</Label>
-                                <Textarea
-                                    id="editMenuItems"
-                                    value={menuFormData.items}
-                                    onChange={(e) => setMenuFormData(prev => ({...prev, items: e.target.value}))}
-                                    placeholder="Enter menu items (one per line)..."
-                                    rows={8}
-                                    className="font-mono"
-                                />
-                            </div>
-
                             <div className="grid grid-cols-2 gap-4">
                                 <div className="space-y-2">
                                     <Label htmlFor="editMenuName">Menu Name</Label>
@@ -1448,7 +1435,7 @@ export default function OrderDetailPage() {
 
 
                             <div className="space-y-2">
-                                <Label htmlFor="editMenuDescription">Description</Label>
+                                <Label htmlFor="editMenuDescription">Menu Items</Label>
                                 <Textarea
                                     id="editMenuDescription"
                                     value={menuFormData.description}

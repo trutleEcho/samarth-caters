@@ -96,7 +96,7 @@ export default function DateTimePicker({
             {date ? formatDateTime(date) : <span>{placeholder}</span>}
           </Button>
         </PopoverTrigger>
-        <PopoverContent className="w-auto p-0" align="start">
+        <PopoverContent className="w-auto p-0 flex flex-row" align="start">
           <div className="p-3 border-b">
             <Calendar
               mode="single"
