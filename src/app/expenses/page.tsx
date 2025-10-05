@@ -481,7 +481,7 @@ export default function ExpensesPage() {
                                             setDrawerOpen(true)
                                         }}
                                     >
-                                        {expense.description || '-'}
+                                        {expense.notes || '-'}
                                     </TableCell>
                                     <TableCell className="flex items-center space-x-2">
                                         <Button

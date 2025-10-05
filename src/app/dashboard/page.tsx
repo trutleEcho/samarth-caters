@@ -61,9 +61,10 @@ export default function DashboardPage() {
             .reduce((sum, expense) => sum + Number(expense.amount), 0)
     }
 
-    const upcomingEvents = orders.map(order =>
-        order.events.find(event => event.date ? new Date(event.date) > new Date() : false)
-    )
+    const upcomingEvents = orders
+        .flatMap(order => order.events)
+        .filter((event): event is any => !!event.date && new Date(event.date) > new Date())
+        .sort((a, b) => new Date(a.date!).getTime() - new Date(b.date!).getTime());
 
     const recentExpenses = expenses.slice(0, 5)
 
@@ -163,7 +164,7 @@ export default function DashboardPage() {
         pdf.addSectionHeader("Performance Insights");
         const netProfit = stats.totalRevenue - stats.monthlyExpenses;
         const profitMargin = stats.totalRevenue > 0 ? ((netProfit / stats.totalRevenue) * 100).toFixed(1) : 0;
-        
+
         pdf.addText(`Net Profit: ${formatCurrency(netProfit)}`, { bold: true, color: netProfit >= 0 ? [40, 167, 69] : [220, 53, 69] });
         pdf.addText(`Profit Margin: ${profitMargin}%`, { bold: true, color: parseFloat(profitMargin.toString()) >= 0 ? [40, 167, 69] : [220, 53, 69] });
         pdf.addText(`Average Order Value: ${formatCurrency(stats.totalOrders > 0 ? stats.totalRevenue / stats.totalOrders : 0)}`, { bold: true });
